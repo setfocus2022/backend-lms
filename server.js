@@ -1,17 +1,13 @@
-require('dotenv').config();
-console.log('DB Host:', process.env.DB_HOST);
-console.log('DB User:', process.env.DB_USER);
-console.log('DB Password:', process.env.DB_PASSWORD);
-console.log('DB Name:', process.env.DB_NAME);
 
-const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const { Pool, Client } = require('pg');
+const { Pool } = require('pg');
+const { Client } = require('pg');
+
 
 const jwtSecret = 'suus02201998##';
-const WebSocket = require('ws');
+
 
 const app = express();
 const pool = new Pool({
