@@ -3,7 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
-const { Client } = require('pg');
+const express = require('express');
 
 
 const jwtSecret = 'suus02201998##';
