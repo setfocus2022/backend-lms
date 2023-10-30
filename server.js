@@ -266,7 +266,7 @@ app.put('/instituicoes/:id', async (req, res) => {
   }
 });
 
-aapp.delete('/instituicoes/:id', async (req, res) => {
+app.delete('/instituicoes/:id', async (req, res) => {
   console.log('Objeto completo de parâmetros:', req.params); // Log dos parâmetros
 
   // Assumindo que o ID é extraído diretamente dos parâmetros (ajuste conforme necessário)
