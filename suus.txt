@@ -1,0 +1,13 @@
+app.post('/register', (req, res) => {
+  const { usuario, nome, email, senha, unidade, setor, acesso } = req.body;
+  const hashedPassword = bcrypt.hashSync(senha, 10);
+
+  const query = 'INSERT INTO cadastro (usuario, nome, email, senha, unidade, setor, acesso) VALUES (?, ?, ?, ?, ?, ?, ?)';
+  db.query(query, [usuario, nome, email, hashedPassword, unidade, setor, acesso], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.send({ success: false, message: err.message });
+    }
+    res.send({ success: true });
+  });
+});
