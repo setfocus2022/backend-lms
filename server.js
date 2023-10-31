@@ -3,12 +3,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
-
-
-
 const jwtSecret = 'suus02201998##';
-
-
 const app = express();
 const pool = new Pool({
   connectionString: 'postgres://MmSTRoK-br:6NCzLOkrnVW9@ep-holy-rain-67858682.us-east-2.aws.neon.tech/psico-connectfam',
