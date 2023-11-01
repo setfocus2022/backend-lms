@@ -25,22 +25,22 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/checkAvaliacao', async (req, res) => {
-  const { cpf, n } = req.query;
+  const { cpf, instituicaoNome } = req.query;
 
-  console.log("Rota CheckAvaliacao acionada. CPF:", cpf, ", Instituição:", n);  // Log para debug
+  console.log("Rota CheckAvaliacao acionada. CPF:", cpf, ", Instituição:", instituicaoNome);  // Log para debug
   
   try {
     const { rows } = await pool.query(
-      'SELECT avaliacao_realizada FROM avaliacoes_realizadas WHERE cpf = $1 AND n = $2',
-      [cpf, n]
+      'SELECT avaliacao_realizada FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaoNome = $2',
+      [cpf, instituicaoNome]
     );
 
     if (rows.length > 0) {
       // Se a avaliação foi realizada, atualize a data_avaliacao
       if (rows[0].avaliacao_realizada === true) {
         await pool.query(
-          'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND n = $2',
-          [cpf, n]
+          'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaoNome = $2',
+          [cpf, instituicaoNome]
         );
       }
       res.status(200).json({ avaliacaoRealizada: rows[0].avaliacao_realizada });
@@ -54,19 +54,19 @@ app.get('/checkAvaliacao', async (req, res) => {
 });
 
 app.get('/api/evaluations/count', async (req, res) => {
-  const n = req.query.n;
+  const instituicaoNome = req.query.instituicaoNome;
   
   try {
     // Consulta para contar todas as avaliações
     const { rows: totalEvaluations } = await pool.query(
-      'SELECT COUNT(*) as total FROM avaliacoes_realizadas WHERE n = $1 AND avaliacao_realizada = true',
-      [n]
+      'SELECT COUNT(*) as total FROM avaliacoes_realizadas WHERE instituicaoNome = $1 AND avaliacao_realizada = true',
+      [instituicaoNome]
     );
 
     // Consulta para contar as avaliações feitas hoje usando a nova coluna data_avaliacao
     const { rows: evaluationsToday } = await pool.query(
-      'SELECT COUNT(*) as today FROM avaliacoes_realizadas WHERE n = $1 AND avaliacao_realizada = true AND DATE(data_avaliacao) = CURRENT_DATE',
-      [n]
+      'SELECT COUNT(*) as today FROM avaliacoes_realizadas WHERE instituicaoNome = $1 AND avaliacao_realizada = true AND DATE(data_avaliacao) = CURRENT_DATE',
+      [instituicaoNome]
     );
 
     res.json({ total: totalEvaluations[0].total, today: evaluationsToday[0].today });
@@ -114,7 +114,7 @@ app.post('/register', async (req, res) => {
     }
 
     const query =
-      'INSERT INTO cadastro_clientes (NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ, Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado, Pais, CEP, Unidade, Setor, Cargo, Instituicao, n, Acesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)';
+      'INSERT INTO cadastro_clientes (NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ, Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado, Pais, CEP, Unidade, Setor, Cargo, Instituicao, instituicaoNome, Acesso) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)';
     const values = [
       NomeCompleto,
       Email,
@@ -173,14 +173,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Wrong password' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.acesso, n: user.instituicaonome }, jwtSecret, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user.id, role: user.acesso, instituicaoNome: user.instituicaoNome }, jwtSecret, { expiresIn: '1h' });
 
     if (!token) {
       console.log('Falha ao criar o token JWT');
       return res.status(500).json({ success: false, message: 'Failed to create token' });
     }
 
-    res.json({ success: true, username: user.identificador, role: user.acesso, token, n: user.n });
+    res.json({ success: true, username: user.identificador, role: user.acesso, token, instituicaoNome: user.instituicaoNome });
   } catch (err) {
     console.log('Erro na consulta do banco de dados:', err);
     return res.status(500).json({ success: false, message: 'Database query error' });
@@ -209,20 +209,20 @@ app.post('/instituicoes', async (req, res) => {
     );
 
     const instituicaoId = instituicaoRows[0].id;
-    const n = nome; // Nome da instituição
+    const instituicaoNome = nome; // Nome da instituição
 
     // Inserir dados em Contatos, Unidades, Setores, Cargos e Usuarios
     await Promise.all([
       contatos.map(contato => client.query(
-        'INSERT INTO Contatos (instituicaoId, categoria, categoriaEspecifica, nomeCompleto, telefone, n) VALUES ($1, $2, $3, $4, $5, $6)',
-        [instituicaoId, contato.categoria, contato.categoriaEspecifica, contato.nomeCompleto, contato.telefone, n]
+        'INSERT INTO Contatos (instituicaoId, categoria, categoriaEspecifica, nomeCompleto, telefone, instituicaoNome) VALUES ($1, $2, $3, $4, $5, $6)',
+        [instituicaoId, contato.categoria, contato.categoriaEspecifica, contato.nomeCompleto, contato.telefone, instituicaoNome]
       )),
-      unidades.map(unidade => client.query('INSERT INTO Unidades (instituicaoId, n, unidade) VALUES ($1, $2, $3)', [instituicaoId, n, unidade])),
-      setores.map(setor => client.query('INSERT INTO Setores (instituicaoId, n, setor) VALUES ($1, $2, $3)', [instituicaoId, n, setor])),
-      cargos.map(cargo => client.query('INSERT INTO Cargos (instituicaoId, n, cargo) VALUES ($1, $2, $3)', [instituicaoId, n, cargo])),
+      unidades.map(unidade => client.query('INSERT INTO Unidades (instituicaoId, instituicaoNome, unidade) VALUES ($1, $2, $3)', [instituicaoId, instituicaoNome, unidade])),
+      setores.map(setor => client.query('INSERT INTO Setores (instituicaoId, instituicaoNome, setor) VALUES ($1, $2, $3)', [instituicaoId, instituicaoNome, setor])),
+      cargos.map(cargo => client.query('INSERT INTO Cargos (instituicaoId, instituicaoNome, cargo) VALUES ($1, $2, $3)', [instituicaoId, instituicaoNome, cargo])),
       usuarios.map(usuario => client.query(
-        'INSERT INTO Usuarios (instituicaoId, n, nome, identificador, senha, acesso) VALUES ($1, $2, $3, $4, $5, $6)',
-        [instituicaoId, n, usuario.nome, usuario.identificador, usuario.senha, 'Administrador']
+        'INSERT INTO Usuarios (instituicaoId, instituicaoNome, nome, identificador, senha, acesso) VALUES ($1, $2, $3, $4, $5, $6)',
+        [instituicaoId, instituicaoNome, usuario.nome, usuario.identificador, usuario.senha, 'Administrador']
       )),
     ]);
 
@@ -386,13 +386,13 @@ app.get('/unidades', async (req, res) => {
 
 // Rota para buscar Usuários
 app.get('/usuarios', async (req, res) => {
-  const n = req.query.n;
+  const instituicaoNome = req.query.instituicaoNome;
 
   try {
-    const query = n ?
-      'SELECT * FROM cadastro_clientes WHERE n = $1' :
+    const query = instituicaoNome ?
+      'SELECT * FROM cadastro_clientes WHERE instituicaoNome = $1' :
       'SELECT * FROM cadastro_clientes';
-    const { rows: usuarios } = await pool.query(query, [n]);
+    const { rows: usuarios } = await pool.query(query, [instituicaoNome]);
     res.status(200).json(usuarios);
   } catch (error) {
     console.error(error);
@@ -476,17 +476,17 @@ app.post('/webhook/zoho', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Primeiro, buscar o nome e n com base no CPF na tabela cadastro_clientes
-    const { rows: clientes } = await client.query('SELECT nome, n FROM cadastro_clientes WHERE cpf = $1', [cpf]);
+    // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
+    const { rows: clientes } = await client.query('SELECT nome, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', [cpf]);
     
     if (clientes.length === 0) {
       return res.status(404).send('Cliente não encontrado');
     }
 
-    const { nome, n } = clientes[0];
+    const { nome, instituicaoNome } = clientes[0];
 
     // Agora, atualizar a tabela avaliacoes_realizadas
-    const { rowCount } = await client.query('INSERT INTO avaliacoes_realizadas (cpf, n, nome, avaliacao_realizada) VALUES ($1, $2, $3, 1)', [cpf, n, nome]);
+    const { rowCount } = await client.query('INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, 1)', [cpf, instituicaoNome, nome]);
 
     if (rowCount > 0) {
       res.status(200).send('Webhook received and database updated');
@@ -572,7 +572,7 @@ app.post("/api/user/login", async (req, res) => {
         message: 'Login bem-sucedido!',
         token: token,
         username: user.NomeCompleto,
-        institution: user.n,
+        institution: user.instituicaoNome,
         role: 'Visualizador',
         birthDate: user.Data_de_Nascimento,
         cpf: user.CPF
@@ -589,13 +589,13 @@ app.post("/api/user/login", async (req, res) => {
 
 
 app.post('/api/recordLogout', async (req, res) => {
-  const { username, n } = req.body;
+  const { username, instituicaoNome } = req.body;
 
   try {
     const client = await pool.connect();
     await client.query(
-      "INSERT INTO Auditoria (username, n, action) VALUES ($1, $2, 'Logout')",
-      [username, n]
+      "INSERT INTO Auditoria (username, instituicaoNome, action) VALUES ($1, $2, 'Logout')",
+      [username, instituicaoNome]
     );
     client.release();
 
@@ -607,12 +607,12 @@ app.post('/api/recordLogout', async (req, res) => {
 });
 
 app.get('/api/AuditEventsByInstitution', async (req, res) => {
-  const institutionName = req.query.n;
+  const institutionName = req.query.instituicaoNome;
 
   try {
     const client = await pool.connect();
     const { rows } = await client.query(
-      "SELECT * FROM Auditoria WHERE n = $1 ORDER BY timestamp DESC",
+      "SELECT * FROM Auditoria WHERE instituicaoNome = $1 ORDER BY timestamp DESC",
       [institutionName]
     );
     client.release();
@@ -626,11 +626,11 @@ app.get('/api/AuditEventsByInstitution', async (req, res) => {
 
 app.post('/programas', async (req, res) => {
   try {
-    const { nome_programa, link_form, n } = req.body;
+    const { nome_programa, link_form, instituicaoNome } = req.body;
     const client = await pool.connect();
     await client.query(
-      'INSERT INTO programas (nome_programa, link_form, n) VALUES ($1, $2, $3)',
-      [nome_programa, link_form, n]
+      'INSERT INTO programas (nome_programa, link_form, instituicaoNome) VALUES ($1, $2, $3)',
+      [nome_programa, link_form, instituicaoNome]
     );
     client.release();
     res.json({ success: true, message: 'Programa criado com sucesso!' });
@@ -642,11 +642,11 @@ app.post('/programas', async (req, res) => {
 
 app.get('/programas', async (req, res) => {
   try {
-    const n = req.query.n;
+    const instituicaoNome = req.query.instituicaoNome;
     const client = await pool.connect();
     const { rows } = await client.query(
-      'SELECT * FROM programas WHERE n = $1',
-      [n]
+      'SELECT * FROM programas WHERE instituicaoNome = $1',
+      [instituicaoNome]
     );
     client.release();
     res.json(rows);
@@ -787,14 +787,14 @@ app.use((req, res, next) => {
 
 // Nova rota para obter a contagem de usuários por instituição
 app.get('/api/UserCountByInstitution', async (req, res) => {
-  const institutionName = req.query.n;
+  const institutionName = req.query.instituicaoNome;
 
   try {
     // Obter uma conexão do pool
     const client = await pool.connect();
 
     // Consulta SQL para contar os usuários com o mesmo nome de instituição
-    const query = "SELECT COUNT(*) AS count FROM cadastro_clientes WHERE n = $1";
+    const query = "SELECT COUNT(*) AS count FROM cadastro_clientes WHERE instituicaoNome = $1";
     const result = await client.query(query, [institutionName]);
 
     // Liberar a conexão de volta para o pool
