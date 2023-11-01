@@ -172,7 +172,7 @@ app.post('/login', async (req, res) => {
       console.log('Senha fornecida não corresponde à senha do usuário no banco de dados');
       return res.status(401).json({ success: false, message: 'Wrong password' });
     }
-
+    console.log(user)
     const token = jwt.sign({ id: user.id, role: user.acesso, instituicaoNome: user.instituicaoNome }, jwtSecret, { expiresIn: '1h' });
 
     if (!token) {
