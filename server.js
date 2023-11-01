@@ -15,7 +15,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://hungry-fawn-bandanna.cyclic.app', 'https://psico-painel-ten.vercel.app'],
+  origin: ['http://localhost:3000', 'https://hungry-fawn-bandanna.cyclic.app', 'https://psicofam.vercel.app'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
