@@ -395,19 +395,25 @@ app.get('/unidades', async (req, res) => {
   }
 });
 
-// Rota para buscar Usuários
 app.get('/usuarios', async (req, res) => {
+  let connection;
   const instituicaoNome = req.query.instituicaoNome;
 
   try {
+    connection = await pool.connect();
     const query = instituicaoNome ?
-      'SELECT * FROM cadastro_clientes WHERE instituicaoNome = $1' :
+      'SELECT * FROM cadastro_clientes WHERE instituicaonome = $1' : // Note que instituicaonome deve estar em minúsculas
       'SELECT * FROM cadastro_clientes';
-    const { rows: usuarios } = await pool.query(query, [instituicaoNome]);
+    const params = instituicaoNome ? [instituicaoNome] : [];
+    const { rows: usuarios } = await connection.query(query, params);
     res.status(200).json(usuarios);
   } catch (error) {
     console.error(error);
     res.status(500).send('Erro ao buscar os usuários');
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 });
 
