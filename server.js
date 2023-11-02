@@ -856,8 +856,6 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
   } = req.body;
 
   try {
-      const client = await pool.connect();
-
       const query = `
           UPDATE cadastro_clientes SET
               NomeCompleto = $1,
@@ -887,14 +885,13 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
           WHERE id = $25
       `;
 
-      await client.query(query, [
+      // Aqui assumimos que 'pool' é uma instância do pool de conexões do PostgreSQL.
+      await pool.query(query, [
           NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
           Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-          Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
-          id
+          Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha, id
       ]);
 
-      client.release();
       res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
   } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
