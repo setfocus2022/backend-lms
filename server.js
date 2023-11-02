@@ -151,14 +151,14 @@ app.post('/register', async (req, res) => {
 });
 
 
-
 app.post('/login', async (req, res) => {
   const { identificador, senha } = req.body;
 
+  // Nota: PostgreSQL usa $1, $2, etc. para parâmetros na consulta
   const query = 'SELECT * FROM Usuarios WHERE identificador = $1';
 
   try {
-    // Consulta ao banco de dados
+    // No PostgreSQL, o pool já pode ser usado diretamente para fazer a query
     const { rows: results } = await pool.query(query, [identificador]);
     
     if (results.length === 0) {
@@ -168,11 +168,14 @@ app.post('/login', async (req, res) => {
 
     const user = results[0];
 
-    if (senha !== user.senha) {
+    // Aqui você deveria usar bcrypt.compare para verificar a senha
+    const isPasswordMatch = await bcrypt.compare(senha, user.senha);
+    if (!isPasswordMatch) {
       console.log('Senha fornecida não corresponde à senha do usuário no banco de dados');
       return res.status(401).json({ success: false, message: 'Wrong password' });
     }
-    console.log(user)
+
+    // Criar o token com jwt
     const token = jwt.sign({ id: user.id, role: user.acesso, instituicaoNome: user.instituicaoNome }, jwtSecret, { expiresIn: '1h' });
 
     if (!token) {
@@ -180,12 +183,15 @@ app.post('/login', async (req, res) => {
       return res.status(500).json({ success: false, message: 'Failed to create token' });
     }
 
+    // Inclua o valor de 'instituicaoNome' na resposta
     res.json({ success: true, username: user.identificador, role: user.acesso, token, instituicaoNome: user.instituicaoNome });
   } catch (err) {
     console.log('Erro na consulta do banco de dados:', err);
     return res.status(500).json({ success: false, message: 'Database query error' });
   }
+  // Não é necessário liberar a conexão explicitamente quando se usa o método query do pool
 });
+
 
 app.post('/instituicoes', async (req, res) => {
   // Iniciar uma transação no PostgreSQL
