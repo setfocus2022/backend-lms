@@ -150,44 +150,54 @@ app.post('/register', async (req, res) => {
   }
 });
 
-
 app.post('/login', async (req, res) => {
   const { identificador, senha } = req.body;
-
-  const query = 'SELECT * FROM Usuarios WHERE identificador = $1';
+  let connection;
 
   try {
-    const connection = await pool.connect();
+    connection = await pool.connect();
+    const query = 'SELECT * FROM Usuarios WHERE identificador = $1';
     const { rows } = await connection.query(query, [identificador]);
-    
+
     if (rows.length === 0) {
       console.log('Nenhum usuário encontrado com o identificador fornecido');
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     const user = rows[0];
-    console.log('Dados do usuário:', user); 
+
     if (senha !== user.senha) {
       console.log('Senha fornecida não corresponde à senha do usuário no banco de dados');
       return res.status(401).json({ success: false, message: 'Wrong password' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.acesso, instituicaoNome: user.instituicaoNome }, jwtSecret, { expiresIn: '1h' });
+    const token = jwt.sign(
+      { id: user.id, role: user.acesso, instituicaoNome: user.instituicaonome }, // Atenção à capitalização
+      jwtSecret,
+      { expiresIn: '1h' }
+    );
 
     if (!token) {
       console.log('Falha ao criar o token JWT');
       return res.status(500).json({ success: false, message: 'Failed to create token' });
     }
 
-    res.json({ success: true, username: user.identificador, role: user.acesso, token, instituicaoNome: user.instituicaoNome });
+    res.json({
+      success: true,
+      username: user.identificador,
+      role: user.acesso,
+      token,
+      instituicaoNome: user.instituicaonome // Atenção à capitalização
+    });
   } catch (err) {
     console.log('Erro na consulta do banco de dados:', err);
-    return res.status(500).json({ success: false, message: 'Database query error' });
+    res.status(500).json({ success: false, message: 'Database query error' });
   } finally {
-    if (connection) connection.release();
+    if (connection) {
+      connection.release();
+    }
   }
 });
-
 app.post('/instituicoes', async (req, res) => {
   // Iniciar uma transação no PostgreSQL
   const client = await pool.connect();
