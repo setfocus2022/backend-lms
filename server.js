@@ -166,7 +166,7 @@ app.post('/login', async (req, res) => {
     }
 
     const user = rows[0];
-
+    console.log('Dados do usuário:', user); 
     if (senha !== user.senha) {
       console.log('Senha fornecida não corresponde à senha do usuário no banco de dados');
       return res.status(401).json({ success: false, message: 'Wrong password' });
