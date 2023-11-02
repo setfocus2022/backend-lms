@@ -850,50 +850,53 @@ app.post('/api/RegisterUserActivity', async (req, res) => {
 app.put('/cadastro_clientes/:id', async (req, res) => {
   const id = req.params.id;
   const {
-      NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+      Nome, Sobrenome, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
       Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
       Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha
   } = req.body;
 
   try {
+      // Obter uma conexão do pool
       const client = await pool.connect();
 
       const query = `
           UPDATE cadastro_clientes SET
-              NomeCompleto = $1,
-              Email = $2,
-              Data_de_Nascimento = $3,
-              Genero = $4,
-              Telefone = $5,
-              Telefone2 = $6,
-              CPF = $7,
-              CNPJ = $8,
-              Matricula = $9,
-              Observacoes = $10,
-              Endereco = $11,
-              Numero = $12,
-              Complemento = $13,
-              Bairro = $14,
-              Cidade = $15,
-              Estado = $16,
-              Pais = $17,
-              CEP = $18,
-              Unidade = $19,
-              Setor = $20,
-              Cargo = $21,
-              Instituicao = $22,
-              Acesso = $23,
-              senha = $24
-          WHERE id = $25
+              Nome = $1,
+              Sobrenome = $2,
+              Email = $3,
+              Data_de_Nascimento = $4,
+              Genero = $5,
+              Telefone = $6,
+              Telefone2 = $7,
+              CPF = $8,
+              CNPJ = $9,
+              Matricula = $10,
+              Observacoes = $11,
+              Endereco = $12,
+              Numero = $13,
+              Complemento = $14,
+              Bairro = $15,
+              Cidade = $16,
+              Estado = $17,
+              Pais = $18,
+              CEP = $19,
+              Unidade = $20,
+              Setor = $21,
+              Cargo = $22,
+              Instituicao = $23,
+              Acesso = $24,
+              senha = $25
+          WHERE id = $26
       `;
 
       await client.query(query, [
-          NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+          Nome, Sobrenome, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
           Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
           Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
           id
       ]);
 
+      // Liberar a conexão de volta para o pool
       client.release();
       res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
   } catch (error) {
@@ -901,7 +904,6 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
       res.status(500).json({ message: 'Erro ao atualizar usuário.' });
   }
 });
-
 
 
 // 3. Deletar um usuário
