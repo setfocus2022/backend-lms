@@ -850,57 +850,54 @@ app.post('/api/RegisterUserActivity', async (req, res) => {
 app.put('/cadastro_clientes/:id', async (req, res) => {
   const id = req.params.id;
   const {
-    Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+    NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
     Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-    Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha, instituicaoNome, NomeCompleto
-} = req.body;
+    Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha
+  } = req.body;
 
   try {
-      const client = await pool.connect();
+    const query = `
+      UPDATE cadastro_clientes SET
+        NomeCompleto = $1,
+        Email = $2,
+        Data_de_Nascimento = $3,
+        Genero = $4,
+        Telefone = $5,
+        Telefone2 = $6,
+        CPF = $7,
+        CNPJ = $8,
+        Matricula = $9,
+        Observacoes = $10,
+        Endereco = $11,
+        Numero = $12,
+        Complemento = $13,
+        Bairro = $14,
+        Cidade = $15,
+        Estado = $16,
+        Pais = $17,
+        CEP = $18,
+        Unidade = $19,
+        Setor = $20,
+        Cargo = $21,
+        Instituicao = $22,
+        Acesso = $23,
+        senha = $24
+      WHERE id = $25
+    `;
 
-      const query = `
-            UPDATE cadastro_clientes SET
-                Email = $1,
-                Data_de_Nascimento = $2,
-                Genero = $3,
-                Telefone = $4,
-                Telefone2 = $5,
-                CPF = $6,
-                CNPJ = $7,
-                Matricula = $8,
-                Observacoes = $9,
-                Endereco = $10,
-                Numero = $11,
-                Complemento = $12,
-                Bairro = $13,
-                Cidade = $14,
-                Estado = $15,
-                Pais = $16,
-                CEP = $17,
-                Unidade = $18,
-                Setor = $19,
-                Cargo = $20,
-                Instituicao = $21,
-                Acesso = $22,
-                senha = $23,
-                instituicaoNome = $24,
-                NomeCompleto = $25
-            WHERE id = $26;
-      `;
+    const values = [
+      NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+      Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
+      Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
+      id
+    ];
 
-      await pool.query(query, [
-          Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
-          Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-          Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha, instituicaoNome,
-          NomeCompleto, id
-      ]);
+    await pool.query(query, values);
 
-
-      client.release();
-      res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
+    res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
   } catch (error) {
-      console.error('Erro ao atualizar usuário:', error);
-      res.status(500).json({ message: 'Erro ao atualizar usuário.' });
+    console.error('Erro ao atualizar usuário:', error);
+    res.status(500).json({ message: 'Erro ao atualizar usuário.' });
   }
 });
 
