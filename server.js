@@ -859,42 +859,43 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
       const client = await pool.connect();
 
       const query = `
-            UPDATE cadastro_clientes SET
-            Email = $1,
-            Data_de_Nascimento = $2,
-            Genero = $3,
-            Telefone = $4,
-            Telefone2 = $5,
-            CPF = $6,
-            CNPJ = $7,
-            Matricula = $8,
-            Observacoes = $9,
-            Endereco = $10,
-            Numero = $11,
-            Complemento = $12,
-            Bairro = $13,
-            Cidade = $14,
-            Estado = $15,
-            Pais = $16,
-            CEP = $17,
-            Unidade = $18,
-            Setor = $19,
-            Cargo = $20,
-            Instituicao = $21,
-            Acesso = $22,
-            senha = $23,
-            instituicaoNome = $24,
-            NomeCompleto = $25
-        WHERE id = $26;
+      UPDATE cadastro_clientes SET
+      Email = $1,
+      Data_de_Nascimento = $2,
+      Genero = $3,
+      Telefone = $4,
+      Telefone2 = $5,
+      CPF = $6,
+      CNPJ = $7,
+      Matricula = $8,
+      Observacoes = $9,
+      Endereco = $10,
+      Numero = $11,
+      Complemento = $12,
+      Bairro = $13,
+      Cidade = $14,
+      Estado = $15,
+      Pais = $16,
+      CEP = $17,
+      Unidade = $18,
+      Setor = $19,
+      Cargo = $20,
+      Instituicao = $21,
+      Acesso = $22,
+      senha = $23,
+      instituicaoNome = $24,
+      NomeCompleto = $25
+  WHERE id = $26;
+  
         
       `;
 
       await pool.query(query, [
-          NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
-          Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-          Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
-          id
-      ]);
+        Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+        Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
+        Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
+        instituicaoNome, NomeCompleto, id // O 'id' é o último parâmetro.
+    ]);
 
       client.release();
       res.status(200).json({ message: 'Usuário atualizado com sucesso!' });
