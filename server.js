@@ -850,9 +850,9 @@ app.post('/api/RegisterUserActivity', async (req, res) => {
 app.put('/cadastro_clientes/:id', async (req, res) => {
   const id = req.params.id;
   const {
-    NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
+    Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
     Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-    Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha, instituicaoNome
+    Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha, instituicaoNome, NomeCompleto
 } = req.body;
 
   try {
