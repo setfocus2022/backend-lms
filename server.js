@@ -889,7 +889,7 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
         
       `;
 
-      await client.query(query, [
+      await pool.query(query, [
           NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
           Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
           Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
