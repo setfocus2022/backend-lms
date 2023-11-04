@@ -402,7 +402,7 @@ app.get('/usuarios', async (req, res) => {
   try {
     connection = await pool.connect();
     const query = instituicaoNome ?
-      'SELECT * FROM cadastro_clientes WHERE instituicaonome = $1' : // Note que instituicaonome deve estar em minúsculas
+      'SELECT * FROM cadastro_clientes WHERE instituicaoNome = $1' : 
       'SELECT * FROM cadastro_clientes';
     const params = instituicaoNome ? [instituicaoNome] : [];
     const { rows: usuarios } = await connection.query(query, params);
@@ -854,7 +854,6 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
     Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
     Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha
   } = req.body;
-
   try {
     const query = `
       UPDATE cadastro_clientes SET
