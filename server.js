@@ -857,7 +857,7 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
   try {
     const query = `
       UPDATE cadastro_clientes SET
-        Nomecompleto = $1,
+        NomeCompleto = $1,
         Email = $2,
         Data_de_Nascimento = $3,
         Genero = $4,
