@@ -850,14 +850,14 @@ app.post('/api/RegisterUserActivity', async (req, res) => {
 app.put('/cadastro_clientes/:id', async (req, res) => {
   const id = req.params.id;
   const {
-    NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
-    Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-    Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha
+    nomecompleto, email, data_de_nascimento, genero, telefone, telefone2, cpf, cnpj,
+    matricula, observacoes, endereco, numero, complemento, bairro, cidade, estado,
+    pais, cep, unidade, setor, cargo, instituicao, acesso, senha
   } = req.body;
   try {
     const query = `
       UPDATE cadastro_clientes SET
-        NomeCompleto = $1,
+        Nomecompleto = $1,
         Email = $2,
         Data_de_Nascimento = $3,
         Genero = $4,
@@ -885,9 +885,9 @@ app.put('/cadastro_clientes/:id', async (req, res) => {
     `;
 
     const values = [
-      NomeCompleto, Email, Data_de_Nascimento, Genero, Telefone, Telefone2, CPF, CNPJ,
-      Matricula, Observacoes, Endereco, Numero, Complemento, Bairro, Cidade, Estado,
-      Pais, CEP, Unidade, Setor, Cargo, Instituicao, Acesso, senha,
+      nomecompleto, email, data_de_nascimento, genero, telefone, telefone2, cpf, cnpj,
+      matricula, observacoes, endereco, numero, complemento, bairro, cidade, estado,
+      pais, cep, unidade, setor, cargo, instituicao, acesso, senha,
       id
     ];
 
