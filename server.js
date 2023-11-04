@@ -588,11 +588,11 @@ app.post("/api/user/login", async (req, res) => {
         success: true,
         message: 'Login bem-sucedido!',
         token: token,
-        username: user.NomeCompleto,
-        institution: user.instituicaoNome,
+        username: user.nNomecompleto,
+        institution: user.instituicaonome,
         role: 'Visualizador',
-        birthDate: user.Data_de_Nascimento,
-        cpf: user.CPF
+        birthDate: user.data_de_nascimento,
+        cpf: user.cpf
       });
     } else {
       res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
