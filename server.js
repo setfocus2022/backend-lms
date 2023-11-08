@@ -500,7 +500,7 @@ app.post('/webhook/zoho', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
+    // Primeiro, buscar o nome completo com base no CPF na tabela cadastro_clientes
     const clientesResult = await client.query(
       'SELECT nomecompleto, instituicaonome FROM cadastro_clientes WHERE cpf = $1',
       [cpf]
@@ -513,14 +513,14 @@ app.post('/webhook/zoho', async (req, res) => {
     // Acessar as propriedades com letras minúsculas, como definido na tabela do banco de dados
     const { nomecompleto, instituicaonome } = clientesResult.rows[0];
     if (!nomecompleto || !instituicaonome) {
-      console.error('Nome ou instituicaoNome estão undefined');
-      return res.status(400).send('Bad Request: Nome ou Instituição estão undefined');
+      console.error('Nome completo ou instituicaoNome estão undefined');
+      return res.status(400).send('Bad Request: Nome completo ou Instituição estão undefined');
     }
     
-    // Agora, atualizar a tabela avaliacoes_realizadas
+    // Agora, atualizar a tabela avaliacoes_realizadas com a coluna 'nome'
     const insertResult = await client.query(
-      'INSERT INTO avaliacoes_realizadas (cpf, instituicaonome, nomecompleto, avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
-      [cpf, instituicaonome, nomecompleto]
+      'INSERT INTO avaliacoes_realizadas (cpf, instituicaonome, nome, avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
+      [cpf, instituicaonome, nomecompleto] // Aqui nós usamos 'nomecompleto' para a coluna 'nome'
     );
 
     // Se a inserção foi bem-sucedida, atualize a coluna data_avaliacao
@@ -540,6 +540,7 @@ app.post('/webhook/zoho', async (req, res) => {
     client.release();
   }
 });
+
 
 
 
