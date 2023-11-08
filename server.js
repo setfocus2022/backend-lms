@@ -495,7 +495,7 @@ app.post('/webhook/zoho', async (req, res) => {
   try {
     // Primeiro, buscar o nomecompleto e instituicaoNome com base no CPF na tabela cadastro_clientes
     const { rows: clientes } = await client.query(
-      'SELECT nomecompleto, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', 
+      'SELECT NomeCompleto, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', 
       [cpf]
     );
     
