@@ -502,7 +502,7 @@ app.post('/webhook/zoho', async (req, res) => {
   try {
     // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
     const clientesResult = await client.query(
-      'SELECT "nomecompleto", "instituicaonome" FROM cadastro_clientes WHERE cpf = $1',
+      'SELECT nomecompleto, instituicaonome FROM cadastro_clientes WHERE cpf = $1',
       [cpf]
     );
     
@@ -510,23 +510,24 @@ app.post('/webhook/zoho', async (req, res) => {
       return res.status(404).send('Cliente não encontrado');
     }
 
-    const { NomeCompleto, instituicaoNome } = clientesResult.rows[0];
-    if (!NomeCompleto || !instituicaoNome) {
+    // Acessar as propriedades com letras minúsculas, como definido na tabela do banco de dados
+    const { nomecompleto, instituicaonome } = clientesResult.rows[0];
+    if (!nomecompleto || !instituicaonome) {
       console.error('Nome ou instituicaoNome estão undefined');
       return res.status(400).send('Bad Request: Nome ou Instituição estão undefined');
     }
     
     // Agora, atualizar a tabela avaliacoes_realizadas
     const insertResult = await client.query(
-      'INSERT INTO avaliacoes_realizadas (cpf, instituicaonome, "nomecompleto", avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
-      [cpf, instituicaoNome, NomeCompleto]
+      'INSERT INTO avaliacoes_realizadas (cpf, instituicaonome, nomecompleto, avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
+      [cpf, instituicaonome, nomecompleto]
     );
 
     // Se a inserção foi bem-sucedida, atualize a coluna data_avaliacao
     if (insertResult.rows.length > 0) {
       await client.query(
         'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaonome = $2',
-        [cpf, instituicaoNome]
+        [cpf, instituicaonome]
       );
       res.status(200).send('Webhook received and database updated');
     } else {
@@ -539,6 +540,7 @@ app.post('/webhook/zoho', async (req, res) => {
     client.release();
   }
 });
+
 
 
 app.post('/register_usuario', async (req, res) => {
