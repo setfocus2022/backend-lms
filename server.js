@@ -27,29 +27,36 @@ app.use(express.json());
 app.get('/checkAvaliacao', async (req, res) => {
   const { cpf, instituicaoNome } = req.query;
 
-  console.log("Rota CheckAvaliacao acionada. CPF:", cpf, ", Instituição:", instituicaoNome);  // Log para debug
+  console.log("Rota CheckAvaliacao acionada. CPF:", cpf, ", Instituição:", instituicaoNome);
   
+  const client = await pool.connect();
+
   try {
-    const { rows } = await pool.query(
+    const avaliacaoResult = await client.query(
       'SELECT avaliacao_realizada FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaoNome = $2',
       [cpf, instituicaoNome]
     );
 
-    if (rows.length > 0) {
+    if (avaliacaoResult.rows.length > 0) {
+      const avaliacaoRealizada = avaliacaoResult.rows[0].avaliacao_realizada;
+      
       // Se a avaliação foi realizada, atualize a data_avaliacao
-      if (rows[0].avaliacao_realizada === true) {
-        await pool.query(
+      if (avaliacaoRealizada) {
+        await client.query(
           'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaoNome = $2',
           [cpf, instituicaoNome]
         );
       }
-      res.status(200).json({ avaliacaoRealizada: rows[0].avaliacao_realizada });
+      res.status(200).json({ avaliacaoRealizada });
     } else {
-      res.status(404).send('Not Found');
+      console.log("Avaliação ainda não realizada.");
+      res.status(200).json({ avaliacaoRealizada: false });
     }
   } catch (error) {
-    console.error('Database query failed:', error);  // Log para debug
+    console.error('Database query failed:', error);
     res.status(500).send('Internal Server Error');
+  } finally {
+    client.release();
   }
 });
 
@@ -484,7 +491,7 @@ app.post('/webhook/zoho', async (req, res) => {
   const payload = req.body;
   console.log("Received payload:", payload);
 
-  const cpf = payload.cpf; // Ajuste para corresponder à chave do payload
+  const { cpf } = payload;
 
   if (typeof cpf === 'undefined') {
     return res.status(400).send('Bad Request: CPF is undefined');
@@ -493,39 +500,37 @@ app.post('/webhook/zoho', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Primeiro, buscar o nomecompleto e instituicaoNome com base no CPF na tabela cadastro_clientes
-    const { rows: clientes } = await client.query(
-      'SELECT NomeCompleto, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', 
+    // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
+    const clientesResult = await client.query(
+      'SELECT "NomeCompleto", "instituicaoNome" FROM cadastro_clientes WHERE cpf = $1',
       [cpf]
     );
     
-    if (clientes.length === 0) {
+    if (clientesResult.rows.length === 0) {
       return res.status(404).send('Cliente não encontrado');
     }
 
-    const { nomecompleto, instituicaoNome } = clientes[0];
-
-    // Verificar se já existe uma avaliação realizada
-    const { rows: avaliacaoExistente } = await client.query(
-      'SELECT * FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaoNome = $2',
-      [cpf, instituicaoNome]
+    const { NomeCompleto, instituicaoNome } = clientesResult.rows[0];
+    if (!NomeCompleto || !instituicaoNome) {
+      console.error('Nome ou instituicaoNome estão undefined');
+      return res.status(400).send('Bad Request: Nome ou Instituição estão undefined');
+    }
+    
+    // Agora, atualizar a tabela avaliacoes_realizadas
+    const insertResult = await client.query(
+      'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, "NomeCompleto", avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
+      [cpf, instituicaoNome, NomeCompleto]
     );
 
-    if (avaliacaoExistente.length === 0) {
-      // Se não, inserir uma nova avaliação
-      const { rowCount } = await client.query(
-        'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, TRUE)', 
-        [cpf, instituicaoNome, nomecompleto]
+    // Se a inserção foi bem-sucedida, atualize a coluna data_avaliacao
+    if (insertResult.rows.length > 0) {
+      await client.query(
+        'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaoNome = $2',
+        [cpf, instituicaoNome]
       );
-
-      if (rowCount > 0) {
-        res.status(200).send('Webhook received and database updated');
-      } else {
-        res.status(500).send('Database update failed');
-      }
+      res.status(200).send('Webhook received and database updated');
     } else {
-      // Se sim, talvez atualizar a entrada existente (dependendo da lógica do negócio)
-      res.status(200).send('Avaliação já registrada');
+      res.status(500).send('Database update failed');
     }
   } catch (error) {
     console.error('Database update failed:', error);
