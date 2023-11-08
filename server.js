@@ -33,7 +33,7 @@ app.get('/checkAvaliacao', async (req, res) => {
 
   try {
     const avaliacaoResult = await client.query(
-      'SELECT avaliacao_realizada FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaoNome = $2',
+      'SELECT avaliacao_realizada FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaonome = $2',
       [cpf, instituicaoNome]
     );
 
@@ -43,7 +43,7 @@ app.get('/checkAvaliacao', async (req, res) => {
       // Se a avaliação foi realizada, atualize a data_avaliacao
       if (avaliacaoRealizada) {
         await client.query(
-          'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaoNome = $2',
+          'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaonome = $2',
           [cpf, instituicaoNome]
         );
       }
@@ -518,14 +518,14 @@ app.post('/webhook/zoho', async (req, res) => {
     
     // Agora, atualizar a tabela avaliacoes_realizadas
     const insertResult = await client.query(
-      'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, "NomeCompleto", avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
+      'INSERT INTO avaliacoes_realizadas (cpf, instituicaonome, "nomecompleto", avaliacao_realizada) VALUES ($1, $2, $3, TRUE) RETURNING *',
       [cpf, instituicaoNome, NomeCompleto]
     );
 
     // Se a inserção foi bem-sucedida, atualize a coluna data_avaliacao
     if (insertResult.rows.length > 0) {
       await client.query(
-        'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaoNome = $2',
+        'UPDATE avaliacoes_realizadas SET data_avaliacao = CURRENT_TIMESTAMP WHERE cpf = $1 AND instituicaonome = $2',
         [cpf, instituicaoNome]
       );
       res.status(200).send('Webhook received and database updated');
