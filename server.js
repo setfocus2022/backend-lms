@@ -493,7 +493,7 @@ app.post('/webhook/zoho', async (req, res) => {
   const client = await pool.connect();
 
   try {
-    // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
+    // Primeiro, buscar o nomecompleto e instituicaoNome com base no CPF na tabela cadastro_clientes
     const { rows: clientes } = await client.query(
       'SELECT nomecompleto, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', 
       [cpf]
@@ -503,18 +503,29 @@ app.post('/webhook/zoho', async (req, res) => {
       return res.status(404).send('Cliente não encontrado');
     }
 
-    const { nome, instituicaoNome } = clientes[0];
+    const { nomecompleto, instituicaoNome } = clientes[0];
 
-    // Agora, atualizar a tabela avaliacoes_realizadas
-    const { rowCount } = await client.query(
-      'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, TRUE)', 
-      [cpf, instituicaoNome, nome]
+    // Verificar se já existe uma avaliação realizada
+    const { rows: avaliacaoExistente } = await client.query(
+      'SELECT * FROM avaliacoes_realizadas WHERE cpf = $1 AND instituicaoNome = $2',
+      [cpf, instituicaoNome]
     );
 
-    if (rowCount > 0) {
-      res.status(200).send('Webhook received and database updated');
+    if (avaliacaoExistente.length === 0) {
+      // Se não, inserir uma nova avaliação
+      const { rowCount } = await client.query(
+        'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, TRUE)', 
+        [cpf, instituicaoNome, nomecompleto]
+      );
+
+      if (rowCount > 0) {
+        res.status(200).send('Webhook received and database updated');
+      } else {
+        res.status(500).send('Database update failed');
+      }
     } else {
-      res.status(500).send('Database update failed');
+      // Se sim, talvez atualizar a entrada existente (dependendo da lógica do negócio)
+      res.status(200).send('Avaliação já registrada');
     }
   } catch (error) {
     console.error('Database update failed:', error);
@@ -523,7 +534,6 @@ app.post('/webhook/zoho', async (req, res) => {
     client.release();
   }
 });
-
 
 
 app.post('/register_usuario', async (req, res) => {
