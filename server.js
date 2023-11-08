@@ -484,7 +484,7 @@ app.post('/webhook/zoho', async (req, res) => {
   const payload = req.body;
   console.log("Received payload:", payload);
 
-  const { cpf } = payload;
+  const cpf = payload.cpf; // Ajuste para corresponder à chave do payload
 
   if (typeof cpf === 'undefined') {
     return res.status(400).send('Bad Request: CPF is undefined');
@@ -494,7 +494,10 @@ app.post('/webhook/zoho', async (req, res) => {
 
   try {
     // Primeiro, buscar o nome e instituicaoNome com base no CPF na tabela cadastro_clientes
-    const { rows: clientes } = await client.query('SELECT nomecompleto, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', [cpf]);
+    const { rows: clientes } = await client.query(
+      'SELECT nome, instituicaoNome FROM cadastro_clientes WHERE cpf = $1', 
+      [cpf]
+    );
     
     if (clientes.length === 0) {
       return res.status(404).send('Cliente não encontrado');
@@ -503,7 +506,10 @@ app.post('/webhook/zoho', async (req, res) => {
     const { nome, instituicaoNome } = clientes[0];
 
     // Agora, atualizar a tabela avaliacoes_realizadas
-    const { rowCount } = await client.query('INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, 1)', [cpf, instituicaoNome, nome]);
+    const { rowCount } = await client.query(
+      'INSERT INTO avaliacoes_realizadas (cpf, instituicaoNome, nome, avaliacao_realizada) VALUES ($1, $2, $3, TRUE)', 
+      [cpf, instituicaoNome, nome]
+    );
 
     if (rowCount > 0) {
       res.status(200).send('Webhook received and database updated');
@@ -517,6 +523,7 @@ app.post('/webhook/zoho', async (req, res) => {
     client.release();
   }
 });
+
 
 
 app.post('/register_usuario', async (req, res) => {
