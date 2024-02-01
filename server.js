@@ -131,6 +131,44 @@ app.delete('/api/delete-aluno/:userId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao excluir aluno' });
   }
 });
+
+app.post('/api/cursos/progresso', async (req, res) => {
+  const { userId, cursoId, aulaAtual, progresso } = req.body;
+
+  try {
+    const client = await pool.connect();
+    const query = `
+      INSERT INTO progresso_cursos (user_id, curso_id, aula_atual, progresso)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (user_id, curso_id) DO UPDATE
+      SET aula_atual = $3, progresso = $4;
+    `;
+    await client.query(query, [userId, cursoId, aulaAtual, progresso]);
+    client.release();
+    res.json({ success: true, message: 'Progresso atualizado com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao atualizar progresso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar progresso', error: error.message });
+  }
+});
+
+
+app.get('/api/cursos/progresso/:userId/:cursoId', async (req, res) => {
+  const { userId, cursoId } = req.params;
+
+  try {
+    const client = await pool.connect();
+    const query = 'SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
+    const { rows } = await client.query(query, [userId, cursoId]);
+    client.release();
+    res.json(rows.length > 0 ? rows[0] : { progresso: 0, aula_atual: null });
+  } catch (error) {
+    console.error('Erro ao recuperar progresso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao recuperar progresso' });
+  }
+});
+
+
 // Rota para contar alunos cadastrados
 app.get('/api/alunos/count', async (req, res) => {
   try {
