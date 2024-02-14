@@ -32,31 +32,30 @@ mercadopago.configure({
 });
 
 app.post("/api/checkout", async (req, res) => {
-  const { items, userId, cursoId } = req.body; // Assumindo que você passa userId e cursoId no corpo da requisição.
+  const { items, userId, cursoId } = req.body;
 
   try {
+    // Primeiro, insere a compra na base de dados e obtém o ID da compra
+    const client = await pool.connect();
+    const insertQuery = 'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW()) RETURNING id';
+    const compraStatus = 'pendente'; // Define o status inicial da compra
+    const result = await client.query(insertQuery, [userId, cursoId, compraStatus]);
+    const compraId = result.rows[0].id; // Obtém o ID da compra inserida
+    client.release();
+
+    // Em seguida, cria a preferência de pagamento com o compraId como external_reference
     const preference = {
       items: items.map(item => ({
         title: item.title,
         unit_price: item.unit_price,
         quantity: item.quantity,
       })),
-      external_reference: compraId.toString(), // Garanta que seja uma string
-      // Outras configurações da preferência...
+      external_reference: compraId.toString(),
     };
-    
+
     const response = await mercadopago.preferences.create(preference);
 
-    // Insere na tabela compras_cursos um novo registro com status 'pendente'
-    const client = await pool.connect();
-    const insertQuery = 'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW()) RETURNING id';
-    const insertValues = [userId, cursoId, 'pendente'];
-    const insertResult = await client.query(insertQuery, insertValues);
-    const compraId = insertResult.rows[0].id; // Obtem o ID da compra inserida
-
-    client.release();
-
-    res.json({ preferenceId: response.body.id, compraId }); // Envia o ID da preferência e da compra para o cliente
+    res.json({ preferenceId: response.body.id, compraId }); // Envia o ID da preferência e o ID da compra para o cliente
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
