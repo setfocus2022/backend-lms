@@ -32,7 +32,7 @@ mercadopago.configure({
 });
 
 app.post("/api/checkout", async (req, res) => {
-  const { items } = req.body;
+  const { items, userId, cursoId } = req.body; // Assumindo que você passa userId e cursoId no corpo da requisição.
 
   try {
     const preference = {
@@ -41,15 +41,27 @@ app.post("/api/checkout", async (req, res) => {
         unit_price: item.unit_price,
         quantity: item.quantity,
       })),
+      // Adiciona mais configurações conforme necessário
     };
 
     const response = await mercadopago.preferences.create(preference);
-    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente 
+
+    // Insere na tabela compras_cursos um novo registro com status 'pendente'
+    const client = await pool.connect();
+    const insertQuery = 'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW()) RETURNING id';
+    const insertValues = [userId, cursoId, 'pendente'];
+    const insertResult = await client.query(insertQuery, insertValues);
+    const compraId = insertResult.rows[0].id; // Obtem o ID da compra inserida
+
+    client.release();
+
+    res.json({ preferenceId: response.body.id, compraId }); // Envia o ID da preferência e da compra para o cliente
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
+
 
 // Processa a notificação
 async function processarNotificacao(notification) {
@@ -64,21 +76,30 @@ async function processarNotificacao(notification) {
 
   // Por exemplo, atualizar o status do pedido no seu banco de dados
 }
-
 app.post("/api/pagamento/notificacao", async (req, res) => {
+  const { id } = req.query; // O Mercado Pago envia o ID da notificação via query params
+
   try {
-      const notification = req.body;
-      console.log("Notificação recebida do Mercado Pago:", notification);
+    // Consulta a notificação recebida para obter detalhes do pagamento
+    const paymentInfo = await mercadopago.payment.findById(id);
+    const payment = paymentInfo.body;
 
-      await processarNotificacao(notification);
+    // Atualiza o status do pagamento na tabela `compras_cursos`
+    const client = await pool.connect();
+    const updateQuery = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
+    const status = payment.status; // 'approved', 'pending', etc.
+    const compraId = /* Você precisa associar o ID do pagamento com o ID da compra */;
+    await client.query(updateQuery, [status, compraId]);
 
-      res.status(200).send("Notificação processada com sucesso");
+    client.release();
+
+    res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
-      console.error("Erro ao processar notificação:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
+    console.error("Erro ao processar notificação:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
-
 });
+
 
 app.get('/api/pagamento/status/:pedidoId', async (req, res) => {
   const { pedidoId } = req.params;
