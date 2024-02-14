@@ -80,6 +80,27 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
 });
 
+app.get('/api/pagamento/status/:pedidoId', async (req, res) => {
+  const { pedidoId } = req.params;
+
+  try {
+    const client = await pool.connect();
+    const query = 'SELECT status FROM compras_cursos WHERE id = $1';
+    const { rows } = await client.query(query, [pedidoId]);
+
+    client.release();
+
+    if (rows.length > 0) {
+      const pagamentoInfo = rows[0];
+      res.json({ status: pagamentoInfo.status });
+    } else {
+      res.status(404).json({ error: 'Pagamento não encontrado' });
+    }
+  } catch (error) {
+    console.error('Erro ao buscar status do pagamento:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
