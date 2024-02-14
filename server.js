@@ -79,7 +79,7 @@ async function processarNotificacao(notification) {
 
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { id } = req.query; // O ID da notificação
-
+  console.log("ID de pagamento recebido para notificação:", id);
   try {
     const paymentInfo = await mercadopago.payment.findById(id);
     const payment = paymentInfo.body;
