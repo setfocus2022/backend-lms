@@ -41,9 +41,10 @@ app.post("/api/checkout", async (req, res) => {
         unit_price: item.unit_price,
         quantity: item.quantity,
       })),
-      // Adiciona mais configurações conforme necessário
+      external_reference: compraId.toString(), // Garanta que seja uma string
+      // Outras configurações da preferência...
     };
-
+    
     const response = await mercadopago.preferences.create(preference);
 
     // Insere na tabela compras_cursos um novo registro com status 'pendente'
@@ -76,19 +77,21 @@ async function processarNotificacao(notification) {
 
   // Por exemplo, atualizar o status do pedido no seu banco de dados
 }
+
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const { id } = req.query; // O Mercado Pago envia o ID da notificação via query params
+  const { id } = req.query; // O ID da notificação
 
   try {
-    // Consulta a notificação recebida para obter detalhes do pagamento
     const paymentInfo = await mercadopago.payment.findById(id);
     const payment = paymentInfo.body;
+
+    // Recupera o external_reference da notificação
+    const compraId = payment.external_reference;
 
     // Atualiza o status do pagamento na tabela `compras_cursos`
     const client = await pool.connect();
     const updateQuery = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-    const status = payment.status; // 'approved', 'pending', etc.
-    const compraId = /* Você precisa associar o ID do pagamento com o ID da compra */;
+    const status = payment.status; // Use o status do pagamento para atualizar o registro
     await client.query(updateQuery, [status, compraId]);
 
     client.release();
@@ -99,6 +102,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).json({ message: "Erro interno do servidor" });
   }
 });
+
 
 
 app.get('/api/pagamento/status/:pedidoId', async (req, res) => {
