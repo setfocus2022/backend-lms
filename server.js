@@ -4,8 +4,17 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
+const { Server } = require("socket.io");
+const http = require('http');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Configure conforme necessário para a segurança
+    methods: ["GET", "POST"],
+  },
+});
 
 const pool = new Pool({
   connectionString: 'postgresql://connectfamead:q0rRK1gyMALN@ep-white-sky-a52j6d6i.us-east-2.aws.neon.tech/lms_mmstrok?sslmode=require',
@@ -64,19 +73,26 @@ async function processarNotificacao(notification) {
 
   // Por exemplo, atualizar o status do pedido no seu banco de dados
 }
-
 app.post("/api/pagamento/notificacao", async (req, res) => {
   try {
-      const notification = req.body;
-      console.log("Notificação recebida do Mercado Pago:", notification);
+    const notification = req.body;
+    console.log("Notificação recebida do Mercado Pago:", notification);
 
-      await processarNotificacao(notification);
+    await processarNotificacao(notification);
 
-      res.status(200).send("Notificação processada com sucesso");
+    // Emitir um evento para o cliente
+    io.emit("pagamento_sucesso", { message: "PAGAMENTO EFETUADO COM SUCESSO!" });
+
+    res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
-      console.error("Erro ao processar notificação:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
+    console.error("Erro ao processar notificação:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
+});
+
+// Iniciar o servidor Socket.IO junto com o Express
+server.listen(5000, () => {
+  console.log('Servidor rodando na porta 5000');
 });
 
 
