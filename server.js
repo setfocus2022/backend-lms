@@ -30,20 +30,30 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
 app.post("/api/checkout", async (req, res) => {
-  const { items, userId, cursoId } = req.body;
+  const { items, nome, sobrenome, email } = req.body;
 
   try {
-    // Primeiro, insere a compra na base de dados e obtém o ID da compra
-    const client = await pool.connect();
-    const insertQuery = 'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW()) RETURNING id';
-    const compraStatus = 'pendente'; // Define o status inicial da compra
-    const result = await client.query(insertQuery, [userId, cursoId, compraStatus]);
-    const compraId = result.rows[0].id; // Obtém o ID da compra inserida
-    client.release();
+    // Cria um usuário temporário
+    const usernameTemp = 'CN' + Math.random().toString().slice(2, 7);
+    const passwordTemp = Math.random().toString(36).slice(-8);
+    const senhaHash = await bcrypt.hash(passwordTemp, 10); // Certifique-se de usar bcrypt para hash da senha
+    const userInsertQuery = `
+      INSERT INTO users (username, nome, sobrenome, email, senha, role)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+    const userValues = [usernameTemp, nome, sobrenome, email, senhaHash, 'temporario'];
+    const userResult = await pool.query(userInsertQuery, userValues);
+    const userId = userResult.rows[0].id;
 
-    // Em seguida, cria a preferência de pagamento com o compraId como external_reference
+    // Cria a compra pendente
+    const compraStatus = 'pendente';
+    const insertQuery = `
+      INSERT INTO compras_cursos (user_id, status, data_compra)
+      VALUES ($1, $2, NOW()) RETURNING id`;
+    const compraResult = await pool.query(insertQuery, [userId, compraStatus]);
+    const compraId = compraResult.rows[0].id;
+
+    // Cria a preferência de pagamento com o MercadoPago
     const preference = {
       items: items.map(item => ({
         title: item.title,
@@ -51,11 +61,11 @@ app.post("/api/checkout", async (req, res) => {
         quantity: item.quantity,
       })),
       external_reference: compraId.toString(),
+      // Aqui você adicionaria outras configurações necessárias para o MercadoPago
     };
-
     const response = await mercadopago.preferences.create(preference);
 
-    res.json({ preferenceId: response.body.id, compraId }); // Envia o ID da preferência e o ID da compra para o cliente
+    res.json({ preferenceId: response.body.id, compraId, usernameTemp, passwordTemp }); // Envia os dados necessários para o cliente
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
@@ -78,25 +88,26 @@ async function processarNotificacao(notification) {
 }
 
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const { id } = req.query; // O ID da notificação
-  console.log("ID de pagamento recebido para notificação:", id);
-  console.log("Corpo da requisição:", req.body);
-  console.log("Query string:", req.query);
+  const { id } = req.query;
+
   try {
     const paymentInfo = await mercadopago.payment.findById(id);
     const payment = paymentInfo.body;
 
-    // Recupera o external_reference da notificação
     const compraId = payment.external_reference;
+    const statusPagamento = payment.status; // 'approved', 'rejected', etc.
 
-    // Atualiza o status do pagamento na tabela `compras_cursos`
     const client = await pool.connect();
-    const updateQuery = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-    const status = payment.status; // Use o status do pagamento para atualizar o registro
-    await client.query(updateQuery, [status, compraId]);
+
+    if (statusPagamento === 'approved') {
+      // Atualiza a role do usuário para 'cliente' se o pagamento for aprovado
+      await client.query('UPDATE users SET role = $1 WHERE id = (SELECT user_id FROM compras_cursos WHERE id = $2)', ['cliente', compraId]);
+    }
+
+    // Atualiza o status da compra independente do resultado do pagamento
+    await client.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [statusPagamento, compraId]);
 
     client.release();
-
     res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
     console.error("Erro ao processar notificação:", error);
