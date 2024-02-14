@@ -25,6 +25,61 @@ app.use(cors({
 
 app.use(express.json());
 
+const mercadopago = require("mercadopago");
+// Configure o SDK com suas credenciais
+mercadopago.configure({
+  access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
+});
+
+app.post("/api/checkout", async (req, res) => {
+  const { items } = req.body;
+
+  try {
+    const preference = {
+      items: items.map(item => ({
+        title: item.title,
+        unit_price: item.unit_price,
+        quantity: item.quantity,
+      })),
+    };
+
+    const response = await mercadopago.preferences.create(preference);
+    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente 
+  } catch (error) {
+    console.error("Erro ao criar preferência de pagamento:", error);
+    res.status(500).json({ message: "Erro interno do servidor", error: error.message });
+  }
+});
+
+// Processa a notificação
+async function processarNotificacao(notification) {
+  const id = notification.data.id; // ID do recurso notificado
+
+  // Busca informações detalhadas sobre o recurso notificado
+  const response = await mercadopago.payment.findById(id);
+  const pagamento = response.body;
+
+  // Aqui você pode verificar o status do pagamento e agir conforme necessário
+  console.log("Detalhes do pagamento:", pagamento);
+
+  // Por exemplo, atualizar o status do pedido no seu banco de dados
+}
+
+app.post("/api/pagamento/notificacao", async (req, res) => {
+  try {
+      const notification = req.body;
+      console.log("Notificação recebida do Mercado Pago:", notification);
+
+      await processarNotificacao(notification);
+
+      res.status(200).send("Notificação processada com sucesso");
+  } catch (error) {
+      console.error("Erro ao processar notificação:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+  }
+});
+
+
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
   const client = await pool.connect();
@@ -152,6 +207,17 @@ app.post('/api/cursos/progresso', async (req, res) => {
   }
 });
 
+app.get('/api/cursos', async (req, res) => {
+  try {
+    const query = 'SELECT id, nome, descricao, thumbnail, valor_15d, valor_30d, valor_6m FROM cursos';
+    const client = await pool.connect();
+    const { rows } = await client.query(query);
+    client.release();
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Erro ao buscar cursos', error });
+  }
+});
 
 app.get('/api/cursos/progresso/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
