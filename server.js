@@ -33,39 +33,23 @@ mercadopago.configure({
 app.post("/api/checkout", async (req, res) => {
   const { items, nome, sobrenome, email } = req.body;
 
-  // Criação de usuário temporário
-  const usernameTemp = `temp_${Date.now()}`; // Exemplo simples de geração de username temporário
-  const senhaTemp = bcrypt.hashSync('senha_temporaria', 10); // Gerar senha temporária
-  
   try {
-    // Insere o usuário temporário no banco de dados
-    const insertUserResult = await pool.query(
-      'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [nome, sobrenome, email, usernameTemp, senhaTemp, 'temporario'] // Role temporario para diferenciar
-    );
-    const userIdTemp = insertUserResult.rows[0].id;
+    // Criar usuário temporário
+    const usernameTemp = `temp_${Date.now()}`; // Exemplo de geração de username temporário
+    const senhaTemp = `temp_${Math.random().toString(36).slice(-8)}`; // Exemplo de senha temporária
+    const inserirUsuario = 'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
+    const valoresUsuario = [nome, sobrenome, email, usernameTemp, senhaTemp, 'temp'];
+    const responseUsuario = await pool.query(inserirUsuario, valoresUsuario);
+    const userId = responseUsuario.rows[0].id;
 
-    // Prepara os itens para a preferência do Mercado Pago
-    const preference = {
-      items: items.map(item => ({
-        title: item.title,
-        unit_price: item.unit_price,
-        quantity: item.quantity,
-      })),
-    };
-
-    // Cria a preferência no Mercado Pago
-    const response = await mercadopago.preferences.create(preference);
-
-    // Insere registro de compra como 'pendente'
-    for (let item of items) {
-      await pool.query(
-        'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)',
-        [userIdTemp, item.id, 'pendente']
-      );
+    // Registrar compra para cada curso selecionado com status 'pendente'
+    for (const item of items) {
+      const inserirCompra = 'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)';
+      const valoresCompra = [userId, item.cursoId, 'pendente']; // Assumindo que cada item tem um cursoId
+      await pool.query(inserirCompra, valoresCompra);
     }
 
-    res.json({ id: response.body.id, userIdTemp }); // Envia o ID da preferência e o ID do usuário temporário
+    // Continua com a criação da preferência de pagamento...
   } catch (error) {
     console.error("Erro ao processar checkout:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
