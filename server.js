@@ -31,30 +31,25 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 app.post("/api/checkout", async (req, res) => {
-  const { items, nome, sobrenome, email } = req.body;
+  const { items } = req.body;
 
   try {
-    // Criar usuário temporário
-    const usernameTemp = `temp_${Date.now()}`; // Exemplo de geração de username temporário
-    const senhaTemp = `temp_${Math.random().toString(36).slice(-8)}`; // Exemplo de senha temporária
-    const inserirUsuario = 'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
-    const valoresUsuario = [nome, sobrenome, email, usernameTemp, senhaTemp, 'temp'];
-    const responseUsuario = await pool.query(inserirUsuario, valoresUsuario);
-    const userId = responseUsuario.rows[0].id;
+    const preference = {
+      items: items.map(item => ({
+        title: item.title,
+        unit_price: item.unit_price,
+        quantity: item.quantity,
+      })),
+    };
 
-    // Registrar compra para cada curso selecionado com status 'pendente'
-    for (const item of items) {
-      const inserirCompra = 'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)';
-      const valoresCompra = [userId, item.cursoId, 'pendente']; // Assumindo que cada item tem um cursoId
-      await pool.query(inserirCompra, valoresCompra);
-    }
-
-    // Continua com a criação da preferência de pagamento...
+    const response = await mercadopago.preferences.create(preference);
+    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente
   } catch (error) {
-    console.error("Erro ao processar checkout:", error);
+    console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
+
 
 // Processa a notificação
 async function processarNotificacao(notification) {
