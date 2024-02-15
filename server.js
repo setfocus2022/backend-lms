@@ -352,15 +352,16 @@ app.delete('/deleteAllUsers', async (req, res) => {
   }
 });
 
+
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
 
   if (!Email || !senha) {
-    console.log('Dados incompletos recebidos.');
     return res.status(400).json({ success: false, message: 'Dados incompletos.' });
   }
-  
-  const query = "SELECT * FROM Users WHERE username = $1";
+
+  // Tenta encontrar o usuário pelo e-mail ou username
+  const query = "SELECT * FROM users WHERE email = $1 OR username = $1";
 
   try {
     const client = await pool.connect();
@@ -370,23 +371,24 @@ app.post("/api/user/login", async (req, res) => {
     if (results.rows.length > 0) {
       const user = results.rows[0];
 
-      // Compare the provided password with the one in the database directly
-      if (senha === user.senha && senha !== 'senha_padrao') { // Adicionamos a condição para verificar se a senha não é "senha_padrao"
+      // Compara a senha fornecida com a hash armazenada
+      const senhaValida = await bcrypt.compare(senha, user.senha);
+      if (senhaValida) {
         const token = jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '1h' });
-      
+
         res.json({
           success: true,
           message: 'Login bem-sucedido!',
           token: token,
           username: user.username,
-          userId: user.id,  // Inclua esta linha
+          userId: user.id,
           role: user.role
         });
       } else {
         res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
       }
     } else {
-      res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+      res.status(401).json({ success: false, message: 'Usuário não encontrado.' });
     }
   } catch (error) {
     console.error(error);
