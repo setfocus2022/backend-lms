@@ -31,47 +31,42 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 
-
-const TEMPO_EXPIRACAO_COMPRA = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
-
-// Função para limpar compras pendentes e usuários temporários
-async function limparComprasPendentes() {
+const limparComprasPendentes = async () => {
   try {
     const client = await pool.connect();
-
-    // Encontra as compras pendentes que passaram do tempo de expiração
-    const { rows: comprasExpiradas } = await client.query(`
-      SELECT id, user_id FROM compras_cursos
-      WHERE status = 'pendente' AND NOW() - data_compra > INTERVAL '24 hours'
-    `);
-
-    // Remove os usuários temporários associados a essas compras
-    for (const compra of comprasExpiradas) {
-      await client.query('DELETE FROM users WHERE id = $1 AND role = $2', [compra.user_id, 'temporario']);
-      await client.query('DELETE FROM compras_cursos WHERE id = $1', [compra.id]);
+    const deleteQuery = `
+      DELETE FROM compras_cursos
+      WHERE status = 'pendente' AND data_compra < (NOW() - INTERVAL '15 minutes')
+      RETURNING user_id;`;
+    const deletedCompras = await client.query(deleteQuery);
+    
+    // Excluir usuários temporários relacionados
+    for (const compra of deletedCompras.rows) {
+      const deleteUserQuery = 'DELETE FROM users WHERE id = $1';
+      await client.query(deleteUserQuery, [compra.user_id]);
     }
 
     client.release();
   } catch (error) {
-    console.error("Erro ao limpar compras pendentes:", error);
+    console.error('Erro ao limpar compras pendentes:', error);
   }
-}
+};
 
-// Agende a função limparComprasPendentes para rodar periodicamente
-setInterval(limparComprasPendentes, TEMPO_EXPIRACAO_COMPRA);
+// Execute a função a cada 15 minutos
+setInterval(limparComprasPendentes, 900000);
 
 app.post("/api/checkout", async (req, res) => {
   const { items, nome, sobrenome, email } = req.body;
 
   try {
-    // Cria um usuário temporário
-    const usernameTemp = 'CN' + Math.random().toString().slice(2, 7);
-    const passwordTemp = Math.random().toString(36).slice(-8);
-    const senhaHash = await bcrypt.hash(passwordTemp, 10); // Certifique-se de usar bcrypt para hash da senha
-    const userInsertQuery = `
-      INSERT INTO users (username, nome, sobrenome, email, senha, role)
-      VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-    const userValues = [usernameTemp, nome, sobrenome, email, senhaHash, 'temporario'];
+  
+    // Crie um usuário temporário
+    const username = `CN${Math.floor(Math.random() * 90000) + 10000}`;
+    const password = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const userInsertQuery = 'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
+    const userValues = [nome, sobrenome, email, username, hashedPassword, 'temporario'];
     const userResult = await pool.query(userInsertQuery, userValues);
     const userId = userResult.rows[0].id;
 
@@ -100,7 +95,7 @@ app.post("/api/checkout", async (req, res) => {
         [userId, item.cursoId, 'pendente']
       );
     }
-    res.json({ preferenceId: response.body.id, compraId, usernameTemp, passwordTemp }); // Envia os dados necessários para o cliente
+    res.json({ preferenceId: response.body.id, compraId, username, tempPassword: password });
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
