@@ -30,6 +30,36 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
+
+
+const TEMPO_EXPIRACAO_COMPRA = 24 * 60 * 60 * 1000; // 24 horas em milissegundos
+
+// Função para limpar compras pendentes e usuários temporários
+async function limparComprasPendentes() {
+  try {
+    const client = await pool.connect();
+
+    // Encontra as compras pendentes que passaram do tempo de expiração
+    const { rows: comprasExpiradas } = await client.query(`
+      SELECT id, user_id FROM compras_cursos
+      WHERE status = 'pendente' AND NOW() - data_compra > INTERVAL '24 hours'
+    `);
+
+    // Remove os usuários temporários associados a essas compras
+    for (const compra of comprasExpiradas) {
+      await client.query('DELETE FROM users WHERE id = $1 AND role = $2', [compra.user_id, 'temporario']);
+      await client.query('DELETE FROM compras_cursos WHERE id = $1', [compra.id]);
+    }
+
+    client.release();
+  } catch (error) {
+    console.error("Erro ao limpar compras pendentes:", error);
+  }
+}
+
+// Agende a função limparComprasPendentes para rodar periodicamente
+setInterval(limparComprasPendentes, TEMPO_EXPIRACAO_COMPRA);
+
 app.post("/api/checkout", async (req, res) => {
   const { items, nome, sobrenome, email } = req.body;
 
@@ -64,12 +94,18 @@ app.post("/api/checkout", async (req, res) => {
       // Aqui você adicionaria outras configurações necessárias para o MercadoPago
     };
     const response = await mercadopago.preferences.create(preference);
-
+    for (const item of items) {
+      await pool.query(
+        'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW())',
+        [userId, item.cursoId, 'pendente']
+      );
+    }
     res.json({ preferenceId: response.body.id, compraId, usernameTemp, passwordTemp }); // Envia os dados necessários para o cliente
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
+  
 });
 
 
