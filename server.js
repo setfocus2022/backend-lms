@@ -30,10 +30,13 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
+
 app.post("/api/checkout", async (req, res) => {
-  const { items } = req.body;
+  const { items } = req.body; // Array de itens, cada item contém title, unit_price, quantity, e cursoId
+  const userId = req.userId; // Assumindo que este ID vem de um middleware de autenticação
 
   try {
+    // Criar preferência no MercadoPago
     const preference = {
       items: items.map(item => ({
         title: item.title,
@@ -41,11 +44,19 @@ app.post("/api/checkout", async (req, res) => {
         quantity: item.quantity,
       })),
     };
+    const responseMP = await mercadopago.preferences.create(preference);
 
-    const response = await mercadopago.preferences.create(preference);
-    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente
+    // Registrar cursos na tabela compras_cursos com status pendente
+    const client = await pool.connect();
+    for (const item of items) {
+      const { cursoId } = item; // Assumindo que cada item tem um cursoId
+      await client.query('INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)', [userId, cursoId, 'pendente']);
+    }
+    client.release();
+
+    res.json({ id: responseMP.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente
   } catch (error) {
-    console.error("Erro ao criar preferência de pagamento:", error);
+    console.error("Erro ao processar checkout:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
