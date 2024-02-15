@@ -86,12 +86,12 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 });
 
 app.post('/api/add-aluno', async (req, res) => {
-  const { nome, sobrenome, email, senha, role } = req.body;
+  const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
 
   try {
     const senhaHash = await bcrypt.hash(senha, 10);
-    const query = 'INSERT INTO users (nome, sobrenome, email, senha, role) VALUES ($1, $2, $3, $4, $5)';
-    const values = [nome, sobrenome, email, senhaHash, role];
+    const query = 'INSERT INTO users (nome, sobrenome, email, senha, username, role) VALUES ($1, $2, $3, $4, $5, $6)'; // Adicionado username na query
+    const values = [nome, sobrenome, email, senhaHash, username, role]; // Adicionado username nos valores
     await pool.query(query, values);
 
     res.json({ success: true, message: 'Usuário criado com sucesso.' });
