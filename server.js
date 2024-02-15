@@ -32,11 +32,16 @@ mercadopago.configure({
 });
 
 app.post("/api/checkout", async (req, res) => {
-  const { items } = req.body; // Array de itens, cada item contém title, unit_price, quantity, e cursoId
-  const userId = req.userId; // Assumindo que este ID vem de um middleware de autenticação
+  const { items, userId } = req.body; // Inclui userId no corpo da requisição
 
   try {
-    // Criar preferência no MercadoPago
+    // Primeiro, registra a compra na tabela 'compras_cursos' com status 'pendente'
+    for (const item of items) {
+      const { cursoId } = item; // Supõe que cada item tenha um campo cursoId
+      await pool.query("INSERT INTO compras_cursos (curso_id, user_id, status) VALUES ($1, $2, $3)", [cursoId, userId, 'pendente']);
+    }
+
+    // Em seguida, cria a preferência de pagamento com o Mercado Pago
     const preference = {
       items: items.map(item => ({
         title: item.title,
@@ -44,22 +49,15 @@ app.post("/api/checkout", async (req, res) => {
         quantity: item.quantity,
       })),
     };
-    const responseMP = await mercadopago.preferences.create(preference);
 
-    // Registrar cursos na tabela compras_cursos com status pendente
-    const client = await pool.connect();
-    for (const item of items) {
-      const { cursoId } = item; // Assumindo que cada item tem um cursoId
-      await client.query('INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)', [userId, cursoId, 'pendente']);
-    }
-    client.release();
-
-    res.json({ id: responseMP.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente
+    const response = await mercadopago.preferences.create(preference);
+    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente
   } catch (error) {
-    console.error("Erro ao processar checkout:", error);
+    console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
+
 
 
 // Processa a notificação
@@ -77,19 +75,23 @@ async function processarNotificacao(notification) {
 }
 
 app.post("/api/pagamento/notificacao", async (req, res) => {
+  const { id } = req.body.data; // ID do pagamento
+
   try {
-      const notification = req.body;
-      console.log("Notificação recebida do Mercado Pago:", notification);
-
-      await processarNotificacao(notification);
-
-      res.status(200).send("Notificação processada com sucesso");
+    // Busca detalhes do pagamento para verificar o status
+    const paymentDetails = await mercadopago.payment.findById(id);
+    if (paymentDetails.body.status === 'approved') {
+      // Aqui você atualizaria o status na sua base de dados
+      // Este é um exemplo, você precisaria ajustar para sua lógica específica
+      await pool.query("UPDATE compras_cursos SET status = 'aprovado' WHERE pagamento_id = $1", [id]);
+    }
+    res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
-      console.error("Erro ao processar notificação:", error);
-      res.status(500).json({ message: "Erro interno do servidor" });
+    console.error("Erro ao processar notificação:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
-
 });
+
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
