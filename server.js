@@ -31,78 +31,25 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 
-const limparComprasPendentes = async () => {
-  try {
-    const client = await pool.connect();
-    const deleteQuery = `
-      DELETE FROM compras_cursos
-      WHERE status = 'pendente' AND data_compra < (NOW() - INTERVAL '15 minutes')
-      RETURNING user_id;`;
-    const deletedCompras = await client.query(deleteQuery);
-    
-    // Excluir usuários temporários relacionados
-    for (const compra of deletedCompras.rows) {
-      const deleteUserQuery = 'DELETE FROM users WHERE id = $1';
-      await client.query(deleteUserQuery, [compra.user_id]);
-    }
-
-    client.release();
-  } catch (error) {
-    console.error('Erro ao limpar compras pendentes:', error);
-  }
-};
-
-// Execute a função a cada 15 minutos
-setInterval(limparComprasPendentes, 900000);
-
 app.post("/api/checkout", async (req, res) => {
-  const { items, nome, sobrenome, email } = req.body;
+  const { items } = req.body;
 
   try {
-  
-    // Crie um usuário temporário
-    const username = `CN${Math.floor(Math.random() * 90000) + 10000}`;
-    const password = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const userInsertQuery = 'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id';
-    const userValues = [nome, sobrenome, email, username, hashedPassword, 'temporario'];
-    const userResult = await pool.query(userInsertQuery, userValues);
-    const userId = userResult.rows[0].id;
-
-    // Cria a compra pendente
-    const compraStatus = 'pendente';
-    const insertQuery = `
-      INSERT INTO compras_cursos (user_id, status, data_compra)
-      VALUES ($1, $2, NOW()) RETURNING id`;
-    const compraResult = await pool.query(insertQuery, [userId, compraStatus]);
-    const compraId = compraResult.rows[0].id;
-
-    // Cria a preferência de pagamento com o MercadoPago
     const preference = {
       items: items.map(item => ({
         title: item.title,
         unit_price: item.unit_price,
         quantity: item.quantity,
       })),
-      external_reference: compraId.toString(),
-      // Aqui você adicionaria outras configurações necessárias para o MercadoPago
     };
+
     const response = await mercadopago.preferences.create(preference);
-    for (const item of items) {
-      await pool.query(
-        'INSERT INTO compras_cursos (user_id, curso_id, status, data_compra) VALUES ($1, $2, $3, NOW())',
-        [userId, item.cursoId, 'pendente']
-      );
-    }
-    res.json({ preferenceId: response.body.id, compraId, username, tempPassword: password });
+    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente 
   } catch (error) {
     console.error("Erro ao criar preferência de pagamento:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
-  
 });
-
 
 // Processa a notificação
 async function processarNotificacao(notification) {
@@ -119,56 +66,20 @@ async function processarNotificacao(notification) {
 }
 
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const { id } = req.query;
-
   try {
-    const paymentInfo = await mercadopago.payment.findById(id);
-    const payment = paymentInfo.body;
+      const notification = req.body;
+      console.log("Notificação recebida do Mercado Pago:", notification);
 
-    const compraId = payment.external_reference;
-    const statusPagamento = payment.status; // 'approved', 'rejected', etc.
+      await processarNotificacao(notification);
 
-    const client = await pool.connect();
-
-    if (statusPagamento === 'approved') {
-      // Atualiza a role do usuário para 'cliente' se o pagamento for aprovado
-      await client.query('UPDATE users SET role = $1 WHERE id = (SELECT user_id FROM compras_cursos WHERE id = $2)', ['cliente', compraId]);
-    }
-
-    // Atualiza o status da compra independente do resultado do pagamento
-    await client.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [statusPagamento, compraId]);
-
-    client.release();
-    res.status(200).send("Notificação processada com sucesso");
+      res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
-    console.error("Erro ao processar notificação:", error);
-    res.status(500).json({ message: "Erro interno do servidor" });
+      console.error("Erro ao processar notificação:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
   }
+
 });
 
-
-
-app.get('/api/pagamento/status/:pedidoId', async (req, res) => {
-  const { pedidoId } = req.params;
-
-  try {
-    const client = await pool.connect();
-    const query = 'SELECT status FROM compras_cursos WHERE id = $1';
-    const { rows } = await client.query(query, [pedidoId]);
-
-    client.release();
-
-    if (rows.length > 0) {
-      const pagamentoInfo = rows[0];
-      res.json({ status: pagamentoInfo.status });
-    } else {
-      res.status(404).json({ error: 'Pagamento não encontrado' });
-    }
-  } catch (error) {
-    console.error('Erro ao buscar status do pagamento:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
