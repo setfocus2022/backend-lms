@@ -28,7 +28,7 @@ app.use(express.json());
 const mercadopago = require("mercadopago");
 // Configure o SDK com suas credenciais
 mercadopago.configure({
-  access_token: "TEST-3156556080259571-021421-71fd8c3ac8785394a985ac186e446d6f-266333751",
+  access_token: "APP_USR-2963469360015665-021322-c17973607cc100378666974aad97bf9d-266333751",
 });
 
 app.post("/api/checkout", async (req, res) => {
