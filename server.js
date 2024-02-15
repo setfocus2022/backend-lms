@@ -85,6 +85,21 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
 });
 
+app.post('/api/add-aluno', async (req, res) => {
+  const { nome, sobrenome, email, senha, role } = req.body;
+
+  try {
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const query = 'INSERT INTO users (nome, sobrenome, email, senha, role) VALUES ($1, $2, $3, $4, $5)';
+    const values = [nome, sobrenome, email, senhaHash, role];
+    await pool.query(query, values);
+
+    res.json({ success: true, message: 'Usuário criado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao adicionar aluno:', error);
+    res.status(500).json({ success: false, message: 'Erro ao criar usuário.' });
+  }
+});
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
