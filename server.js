@@ -30,11 +30,22 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
 app.post("/api/checkout", async (req, res) => {
-  const { items } = req.body;
+  const { items, nome, sobrenome, email } = req.body;
 
+  // Criação de usuário temporário
+  const usernameTemp = `temp_${Date.now()}`; // Exemplo simples de geração de username temporário
+  const senhaTemp = bcrypt.hashSync('senha_temporaria', 10); // Gerar senha temporária
+  
   try {
+    // Insere o usuário temporário no banco de dados
+    const insertUserResult = await pool.query(
+      'INSERT INTO users (nome, sobrenome, email, username, senha, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [nome, sobrenome, email, usernameTemp, senhaTemp, 'temporario'] // Role temporario para diferenciar
+    );
+    const userIdTemp = insertUserResult.rows[0].id;
+
+    // Prepara os itens para a preferência do Mercado Pago
     const preference = {
       items: items.map(item => ({
         title: item.title,
@@ -43,10 +54,20 @@ app.post("/api/checkout", async (req, res) => {
       })),
     };
 
+    // Cria a preferência no Mercado Pago
     const response = await mercadopago.preferences.create(preference);
-    res.json({ id: response.body.id }); // Envia o ID da preferência de pagamento de volta para o cliente 
+
+    // Insere registro de compra como 'pendente'
+    for (let item of items) {
+      await pool.query(
+        'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3)',
+        [userIdTemp, item.id, 'pendente']
+      );
+    }
+
+    res.json({ id: response.body.id, userIdTemp }); // Envia o ID da preferência e o ID do usuário temporário
   } catch (error) {
-    console.error("Erro ao criar preferência de pagamento:", error);
+    console.error("Erro ao processar checkout:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
