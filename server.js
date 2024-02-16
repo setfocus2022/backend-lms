@@ -93,16 +93,23 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
   try {
     // Busca o pagamento pelo ID para obter detalhes
-     // Suponha que external_reference seja algo como "compra-123-456"
     const payment = await mercadopago.payment.findById(notification.data.id);
-    const paymentInfo = payment.body;
+    const paymentStatus = payment.body.status; // Status do pagamento
+    const externalReference = payment.body.external_reference;
 
-    // Você precisará extrair o ID da compra do external_reference
-    const compraId = paymentInfo.external_reference.split('-')[1]; // Isso dependerá do formato que você escolheu
+    // Confirma que external_reference está presente e não é nulo
+    if (!externalReference) {
+      console.error("Erro: external_reference não encontrado no objeto de pagamento.");
+      return res.status(500).json({ message: "Erro interno do servidor - external_reference não encontrado" });
+    }
 
-    if (paymentInfo.status === 'approved') {
-      const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(query, ['aprovado', compraId]);
+    // Supondo que external_reference seja o ID da compra na tabela compras_cursos
+    const compraId = externalReference; // Aqui você usaria o ID direto se ele for o ID da compra
+
+    // Atualiza o status da compra no banco de dados
+    if (paymentStatus === 'approved') {
+      const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
+      await pool.query(atualizarCompra, ['aprovado', compraId]);
     }
 
     // Confirmação para o MercadoPago que a notificação foi processada
@@ -112,7 +119,6 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).json({ message: "Erro interno do servidor", error });
   }
 });
-
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
