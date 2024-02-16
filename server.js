@@ -93,16 +93,16 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
   try {
     // Busca o pagamento pelo ID para obter detalhes
+     // Suponha que external_reference seja algo como "compra-123-456"
     const payment = await mercadopago.payment.findById(notification.data.id);
-    const paymentStatus = payment.body.status; // Status do pagamento
+    const paymentInfo = payment.body;
 
-    // Supondo que o ID da compra seja enviado no campo external_reference pelo MercadoPago
-    const compraId = payment.body.external_reference;
+    // Você precisará extrair o ID da compra do external_reference
+    const compraId = paymentInfo.external_reference.split('-')[1]; // Isso dependerá do formato que você escolheu
 
-    // Atualiza o status da compra no banco de dados
-    if (paymentStatus === 'approved') {
-      const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(atualizarCompra, ['aprovado', compraId]);
+    if (paymentInfo.status === 'approved') {
+      const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
+      await pool.query(query, ['aprovado', compraId]);
     }
 
     // Confirmação para o MercadoPago que a notificação foi processada
