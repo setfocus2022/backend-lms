@@ -80,13 +80,13 @@ async function processarNotificacao(notification) {
 
   // Por exemplo, atualizar o status do pedido no seu banco de dados
 }
+
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  // O ID da notificação é enviado pelo MercadoPago no body da requisição
-  const notification = req.body;
+  const { id } = req.query; // O ID da notificação é enviado via query params pelo MercadoPago
 
   try {
     // Busca o pagamento pelo ID para obter detalhes
-    const payment = await mercadopago.payment.findById(notification.data.id);
+    const payment = await mercadopago.payment.findById(id);
     const paymentStatus = payment.body.status; // Status do pagamento
 
     // Supondo que o ID da compra seja enviado no campo external_reference pelo MercadoPago
@@ -98,13 +98,13 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       await pool.query(atualizarCompra, ['aprovado', compraId]);
     }
 
-    // Confirmação para o MercadoPago que a notificação foi processada
     res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
     console.error("Erro ao processar notificação:", error);
-    res.status(500).json({ message: "Erro interno do servidor", error });
+    res.status(500).json({ message: "Erro interno do servidor" });
   }
 });
+
 
 
 app.post('/api/add-aluno', async (req, res) => {
