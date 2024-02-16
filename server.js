@@ -51,7 +51,7 @@ app.post("/api/checkout", async (req, res) => {
         unit_price: item.unit_price,
         quantity: 1,
       })),
-      external_reference: `${userId}`, // Aqui você está usando o userId como external_reference
+      external_reference: `${userId}-${new Date().getTime()}`, // Aqui você está usando o userId como external_reference
       // Você poderia usar os IDs das compras se precisar de mais detalhes
       // external_reference: comprasRegistradas.join('-'),
     };
@@ -87,40 +87,33 @@ async function processarNotificacao(notification) {
   }
 }
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const { data } = req.body; // Assumindo que a estrutura da notificação é como mencionado anteriormente
+  const notification = req.body;
 
-  if (data && data.id) {
+  if (notification.type === 'payment') {
+    const paymentId = notification.data.id;
+
     try {
-      const payment = await mercadopago.payment.findById(data.id);
-      const externalReference = payment.body.external_reference;
+      const payment = await mercadopago.payment.findById(paymentId);
+      if (payment.body && payment.body.external_reference) {
+        const externalReference = payment.body.external_reference; // Aqui você obtém o external_reference
 
-      // Assegure-se de que externalReference é definido e não é undefined
-      if (!externalReference) {
-        console.error('external_reference não encontrado no objeto de pagamento.');
-        return res.status(400).send('external_reference não encontrado.');
+        // Agora, use o externalReference para encontrar e atualizar a compra correspondente
+        // Por exemplo, se você usou `${userId}-${timestamp}` como external_reference:
+        const [userId, timestamp] = externalReference.split('-'); // Ajuste conforme o formato que você escolheu
+        // Você precisa ajustar a query abaixo para encontrar a compra correta usando userId e talvez o timestamp ou outro identificador
+        const query = 'UPDATE compras_cursos SET status = $1 WHERE user_id = $2 AND alguma_coluna = $3';
+        await pool.query(query, ['aprovado', userId, algumValorIdentificador]);
+
+        res.status(200).send("Notificação processada com sucesso");
+      } else {
+        throw new Error("external_reference não encontrado no pagamento.");
       }
-
-      // Converta externalReference para o tipo esperado, se necessário
-      // Exemplo: se externalReference é um ID composto ou contém apenas o ID da compra
-      const compraId = parseInt(externalReference, 10); // Converte para inteiro, se aplicável
-
-      // Verifique se a conversão foi bem-sucedida
-      if (isNaN(compraId)) {
-        console.error('Erro na conversão de external_reference para inteiro', externalReference);
-        return res.status(400).send('Erro na conversão de external_reference para inteiro.');
-      }
-
-      // Prossiga com a atualização da compra
-      const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(atualizarCompra, ['aprovado', compraId]);
-
-      res.status(200).send("Notificação processada com sucesso");
     } catch (error) {
       console.error("Erro ao processar notificação:", error);
       res.status(500).send("Erro interno do servidor");
     }
   } else {
-    res.status(400).send("Dados de notificação inválidos");
+    res.status(400).send("Tipo de notificação não suportado");
   }
 });
 
