@@ -87,20 +87,30 @@ async function processarNotificacao(notification) {
   }
 }
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const notification = req.body;
+  const { data } = req.body; // Assumindo que a estrutura da notificação é como mencionado anteriormente
 
-  if (notification.type === 'payment') {
-    const paymentId = notification.data.id;
-
+  if (data && data.id) {
     try {
-      const payment = await mercadopago.payment.findById(paymentId);
+      const payment = await mercadopago.payment.findById(data.id);
       const externalReference = payment.body.external_reference;
-      
-      // Use o external_reference para encontrar a compra correspondente no seu banco de dados
-      const compraId = externalReference; // Se você usou apenas o userId como external_reference
-      // Se você usou o método de juntar os IDs das compras: const compraIds = externalReference.split('-');
 
-      // Atualize o status da compra no seu banco de dados
+      // Assegure-se de que externalReference é definido e não é undefined
+      if (!externalReference) {
+        console.error('external_reference não encontrado no objeto de pagamento.');
+        return res.status(400).send('external_reference não encontrado.');
+      }
+
+      // Converta externalReference para o tipo esperado, se necessário
+      // Exemplo: se externalReference é um ID composto ou contém apenas o ID da compra
+      const compraId = parseInt(externalReference, 10); // Converte para inteiro, se aplicável
+
+      // Verifique se a conversão foi bem-sucedida
+      if (isNaN(compraId)) {
+        console.error('Erro na conversão de external_reference para inteiro', externalReference);
+        return res.status(400).send('Erro na conversão de external_reference para inteiro.');
+      }
+
+      // Prossiga com a atualização da compra
       const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
       await pool.query(atualizarCompra, ['aprovado', compraId]);
 
@@ -110,7 +120,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       res.status(500).send("Erro interno do servidor");
     }
   } else {
-    res.status(400).send("Tipo de notificação não suportado");
+    res.status(400).send("Dados de notificação inválidos");
   }
 });
 
