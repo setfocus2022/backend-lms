@@ -86,34 +86,23 @@ async function processarNotificacao(notification) {
     throw error;
   }
 }
-
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  // O ID da notificação é enviado pelo MercadoPago no body da requisição
   const notification = req.body;
 
   try {
-    // Busca o pagamento pelo ID para obter detalhes
-    const payment = await mercadopago.payment.findById(notification.data.id);
-    const paymentStatus = payment.body.status; // Status do pagamento
-    const externalReference = payment.body.external_reference;
+    // O método findById deve ser usado com o ID do pagamento, não com o ID da notificação
+    const paymentResponse = await mercadopago.payment.get(notification.data.id);
+    const payment = paymentResponse.response;
 
-    // Confirma que external_reference está presente e não é nulo
-    if (!externalReference) {
-      console.error("Erro: external_reference não encontrado no objeto de pagamento.");
-      return res.status(500).json({ message: "Erro interno do servidor - external_reference não encontrado" });
-    }
-
-    // Supondo que external_reference seja o ID da compra na tabela compras_cursos
-    const compraId = externalReference; // Aqui você usaria o ID direto se ele for o ID da compra
-
-    // Atualiza o status da compra no banco de dados
-    if (paymentStatus === 'approved') {
+    // Agora, verifique se o external_reference está presente
+    if (payment.status === 'approved' && payment.external_reference) {
+      // Aqui, você atualiza o status da compra no banco de dados usando o external_reference
       const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(atualizarCompra, ['aprovado', compraId]);
+      await pool.query(atualizarCompra, ['aprovado', payment.external_reference]);
+      res.status(200).send("Notificação processada com sucesso");
+    } else {
+      res.status(400).send("external_reference não encontrado ou pagamento não aprovado");
     }
-
-    // Confirmação para o MercadoPago que a notificação foi processada
-    res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
     console.error("Erro ao processar notificação:", error);
     res.status(500).json({ message: "Erro interno do servidor", error });
