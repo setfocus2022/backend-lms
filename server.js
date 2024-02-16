@@ -87,9 +87,12 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
     const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
+    const paymentStatus = payment.body.status; // Status do pagamento
 
+    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', ['aprovado', compraId]);
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
+      await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
     }));
 
     res.send("Notificação processada com sucesso.");
