@@ -66,27 +66,34 @@ app.post("/api/checkout", async (req, res) => {
   }
 });
 
-
-// Processa a notificação
 async function processarNotificacao(notification) {
-  const id = notification.data.id; // ID do recurso notificado
-
-  // Busca informações detalhadas sobre o recurso notificado
-  const response = await mercadopago.payment.findById(id);
-  const pagamento = response.body;
-
-  // Aqui você pode verificar o status do pagamento e agir conforme necessário
-  console.log("Detalhes do pagamento:", pagamento);
-
-  // Por exemplo, atualizar o status do pedido no seu banco de dados
-}
-
-app.post("/api/pagamento/notificacao", async (req, res) => {
-  const { id } = req.query; // O ID da notificação é enviado via query params pelo MercadoPago
+  // Supondo que a notification tenha um campo 'data.id'
+  const paymentId = notification.data.id;
 
   try {
     // Busca o pagamento pelo ID para obter detalhes
-    const payment = await mercadopago.payment.findById(id);
+    const paymentResponse = await mercadopago.payment.get(paymentId);
+    const paymentInfo = paymentResponse.body;
+
+    if (paymentInfo.status === 'approved') {
+      // Supondo que o external_reference seja o ID da compra
+      const compraId = paymentInfo.external_reference;
+      const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
+      await pool.query(query, ['aprovado', compraId]);
+    }
+  } catch (error) {
+    console.error('Erro ao processar pagamento:', error);
+    throw error;
+  }
+}
+
+app.post("/api/pagamento/notificacao", async (req, res) => {
+  // O ID da notificação é enviado pelo MercadoPago no body da requisição
+  const notification = req.body;
+
+  try {
+    // Busca o pagamento pelo ID para obter detalhes
+    const payment = await mercadopago.payment.findById(notification.data.id);
     const paymentStatus = payment.body.status; // Status do pagamento
 
     // Supondo que o ID da compra seja enviado no campo external_reference pelo MercadoPago
@@ -98,13 +105,13 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       await pool.query(atualizarCompra, ['aprovado', compraId]);
     }
 
+    // Confirmação para o MercadoPago que a notificação foi processada
     res.status(200).send("Notificação processada com sucesso");
   } catch (error) {
     console.error("Erro ao processar notificação:", error);
-    res.status(500).json({ message: "Erro interno do servidor" });
+    res.status(500).json({ message: "Erro interno do servidor", error });
   }
 });
-
 
 
 app.post('/api/add-aluno', async (req, res) => {
