@@ -32,39 +32,39 @@ mercadopago.configure({
 });
 
 app.post("/api/checkout", async (req, res) => {
-  const { items, userId } = req.body; // Agora também esperamos receber o userId do front-end
+  const { items, userId } = req.body;
 
-  // Inicializa um array para armazenar os IDs das compras registradas
   let comprasRegistradas = [];
-
   try {
-    // Loop pelos itens para registrar cada curso comprado no banco de dados antes de criar a preferência de pagamento
     for (const item of items) {
-      const cursoId = item.id; // Supõe-se que cada item tenha um ID do curso associado
+      const cursoId = item.id;
       const inserirCompra = 'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3) RETURNING id';
-      const { rows } = await pool.query(inserirCompra, [userId, cursoId, 'pendente']);
-      comprasRegistradas.push(rows[0].id); // Armazena o ID da compra registrada
+      const compra = await pool.query(inserirCompra, [userId, cursoId, 'pendente']);
+      const compraId = compra.rows[0].id;
+      comprasRegistradas.push(compraId);
     }
 
-    // Cria a preferência de pagamento no MercadoPago
     const preference = {
       items: items.map(item => ({
+        id: item.id,
         title: item.title,
         unit_price: item.unit_price,
-        quantity: item.quantity,
+        quantity: 1,
       })),
-      // Aqui você pode adicionar informações adicionais necessárias pelo MercadoPago
+      external_reference: `${userId}`, // Aqui você está usando o userId como external_reference
+      // Você poderia usar os IDs das compras se precisar de mais detalhes
+      // external_reference: comprasRegistradas.join('-'),
     };
 
     const response = await mercadopago.preferences.create(preference);
 
-    // Retorna a resposta incluindo o ID da preferência de pagamento e os IDs das compras registradas
-    res.json({ mercadopagoId: response.body.id, comprasRegistradas }); 
+    res.json({ mercadopagoId: response.body.id, comprasRegistradas });
   } catch (error) {
     console.error("Erro ao processar checkout:", error);
     res.status(500).json({ message: "Erro interno do servidor", error: error.message });
   }
 });
+
 
 async function processarNotificacao(notification) {
   // Supondo que a notification tenha um campo 'data.id'
@@ -89,25 +89,31 @@ async function processarNotificacao(notification) {
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const notification = req.body;
 
-  try {
-    // O método findById deve ser usado com o ID do pagamento, não com o ID da notificação
-    const paymentResponse = await mercadopago.payment.get(notification.data.id);
-    const payment = paymentResponse.response;
+  if (notification.type === 'payment') {
+    const paymentId = notification.data.id;
 
-    // Agora, verifique se o external_reference está presente
-    if (payment.status === 'approved' && payment.external_reference) {
-      // Aqui, você atualiza o status da compra no banco de dados usando o external_reference
+    try {
+      const payment = await mercadopago.payment.findById(paymentId);
+      const externalReference = payment.body.external_reference;
+      
+      // Use o external_reference para encontrar a compra correspondente no seu banco de dados
+      const compraId = externalReference; // Se você usou apenas o userId como external_reference
+      // Se você usou o método de juntar os IDs das compras: const compraIds = externalReference.split('-');
+
+      // Atualize o status da compra no seu banco de dados
       const atualizarCompra = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(atualizarCompra, ['aprovado', payment.external_reference]);
+      await pool.query(atualizarCompra, ['aprovado', compraId]);
+
       res.status(200).send("Notificação processada com sucesso");
-    } else {
-      res.status(400).send("external_reference não encontrado ou pagamento não aprovado");
+    } catch (error) {
+      console.error("Erro ao processar notificação:", error);
+      res.status(500).send("Erro interno do servidor");
     }
-  } catch (error) {
-    console.error("Erro ao processar notificação:", error);
-    res.status(500).json({ message: "Erro interno do servidor", error });
+  } else {
+    res.status(400).send("Tipo de notificação não suportado");
   }
 });
+
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
