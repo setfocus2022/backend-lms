@@ -34,36 +34,30 @@ mercadopago.configure({
 app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
 
-  let comprasRegistradas = [];
   try {
-    for (const item of items) {
-      const cursoId = item.id;
-      const inserirCompra = 'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3) RETURNING id';
-      const compra = await pool.query(inserirCompra, [userId, cursoId, 'pendente']);
-      const compraId = compra.rows[0].id;
-      comprasRegistradas.push(compraId);
-    }
+    const compras = await Promise.all(items.map(async item => {
+      const { rows } = await pool.query('INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3) RETURNING id', [userId, item.id, 'pendente']);
+      return rows[0].id; // Retorna o ID da compra
+    }));
 
     const preference = {
-      items: items.map(item => ({
+      items: items.map((item, index) => ({
         id: item.id,
         title: item.title,
         unit_price: item.unit_price,
         quantity: 1,
       })),
-      external_reference: `${userId}-${new Date().getTime()}`, // Aqui você está usando o userId como external_reference
-      // Você poderia usar os IDs das compras se precisar de mais detalhes
-      // external_reference: comprasRegistradas.join('-'),
+      external_reference: compras.join('-'), // Concatena os IDs das compras
     };
 
     const response = await mercadopago.preferences.create(preference);
-
-    res.json({ mercadopagoId: response.body.id, comprasRegistradas });
+    res.json({ preferenceId: response.body.id, comprasRegistradas: compras });
   } catch (error) {
-    console.error("Erro ao processar checkout:", error);
-    res.status(500).json({ message: "Erro interno do servidor", error: error.message });
+    console.error("Erro ao criar a preferência de pagamento:", error);
+    res.status(500).json({ error: error.toString() });
   }
 });
+
 
 
 async function processarNotificacao(notification) {
@@ -87,33 +81,21 @@ async function processarNotificacao(notification) {
   }
 }
 app.post("/api/pagamento/notificacao", async (req, res) => {
-  const notification = req.body;
+  const { data } = req.body;
 
-  if (notification.type === 'payment') {
-    const paymentId = notification.data.id;
+  try {
+    const payment = await mercadopago.payment.findById(data.id);
+    const externalReference = payment.body.external_reference;
+    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
 
-    try {
-      const payment = await mercadopago.payment.findById(paymentId);
-      if (payment.body && payment.body.external_reference) {
-        const externalReference = payment.body.external_reference; // Aqui você obtém o external_reference
+    await Promise.all(compraIds.map(async compraId => {
+      await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', ['aprovado', compraId]);
+    }));
 
-        // Agora, use o externalReference para encontrar e atualizar a compra correspondente
-        // Por exemplo, se você usou `${userId}-${timestamp}` como external_reference:
-        const [userId, timestamp] = externalReference.split('-'); // Ajuste conforme o formato que você escolheu
-        // Você precisa ajustar a query abaixo para encontrar a compra correta usando userId e talvez o timestamp ou outro identificador
-        const query = 'UPDATE compras_cursos SET status = $1 WHERE user_id = $2 AND alguma_coluna = $3';
-        await pool.query(query, ['aprovado', userId, algumValorIdentificador]);
-
-        res.status(200).send("Notificação processada com sucesso");
-      } else {
-        throw new Error("external_reference não encontrado no pagamento.");
-      }
-    } catch (error) {
-      console.error("Erro ao processar notificação:", error);
-      res.status(500).send("Erro interno do servidor");
-    }
-  } else {
-    res.status(400).send("Tipo de notificação não suportado");
+    res.send("Notificação processada com sucesso.");
+  } catch (error) {
+    console.error("Erro ao processar notificação:", error);
+    res.status(500).send("Erro interno do servidor");
   }
 });
 
