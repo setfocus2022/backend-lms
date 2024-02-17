@@ -532,18 +532,6 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
   }
 });
 
-app.post('/api/compra/cancelar/:compraId', async (req, res) => {
-  const { compraId } = req.params;
-  try {
-      await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', ['cancelado', compraId]);
-      res.json({ message: 'Compra cancelada com sucesso.' });
-  } catch (error) {
-      console.error('Erro ao cancelar compra:', error);
-      res.status(500).json({ message: 'Erro ao cancelar compra.' });
-  }
-});
-
-
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
 
