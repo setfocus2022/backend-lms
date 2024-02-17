@@ -510,19 +510,22 @@ app.get('/api/user/profile/:username', async (req, res) => {
   }
 });
 // Adiciona uma rota para verificar o status de uma compra específica
-app.get('/api/compra/data/:compraId', async (req, res) => {
+app.get('/api/compra/status/:compraId', async (req, res) => {
   const { compraId } = req.params;
+
   try {
-    const query = 'SELECT data_compra FROM compras_cursos WHERE id = $1';
-    const { rows } = await pool.query(query, [compraId]);
+    // Busca o status da compra pelo ID fornecido
+    const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+
     if (rows.length > 0) {
-      res.json({ success: true, dataCompra: rows[0].data_compra });
+      const status = rows[0].status;
+      res.json({ status });
     } else {
       res.status(404).json({ message: 'Compra não encontrada.' });
     }
   } catch (error) {
-    console.error('Erro ao buscar data da compra:', error);
-    res.status(500).json({ message: 'Erro ao buscar data da compra' });
+    console.error('Erro ao buscar o status da compra:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
 
