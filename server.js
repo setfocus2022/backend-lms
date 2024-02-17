@@ -532,6 +532,20 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
   }
 });
 
+app.delete('/api/compra/cancelar/:compraId', async (req, res) => {
+  const { compraId } = req.params;
+
+  try {
+    // Aqui você pode definir a compra como cancelada ou simplesmente remover a compra
+    await pool.query('DELETE FROM compras_cursos WHERE id = $1 AND status = $2', [compraId, 'pendente']);
+    res.json({ message: 'Compra cancelada com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao cancelar a compra:', error);
+    res.status(500).json({ message: 'Erro interno do servidor ao cancelar a compra' });
+  }
+});
+
+
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
 
