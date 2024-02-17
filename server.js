@@ -30,6 +30,21 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
+const checkAndDeletePendingPurchases = async () => {
+  try {
+    const query = `
+      DELETE FROM compras_cursos 
+      WHERE status = 'pendente' AND created_at < NOW() - INTERVAL '5 minutes'
+    `;
+    const { rowCount } = await pool.query(query);
+    console.log(`${rowCount} compras pendentes foram excluídas.`);
+  } catch (error) {
+    console.error('Erro ao excluir compras pendentes:', error);
+  }
+};
+
+// Você pode usar o setInterval para executar essa função a cada minuto
+setInterval(checkAndDeletePendingPurchases, 60000);
 
 app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
@@ -121,28 +136,6 @@ app.post('/api/add-aluno', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao criar usuário.' });
   }
 });
-// Função para cancelar compras pendentes após 5 minutos
-const cancelarComprasPendentes = async () => {
-  console.log('Verificando compras pendentes para cancelamento...');
-  const query = `
-    UPDATE compras_cursos
-    SET status = 'cancelado'
-    WHERE status = 'pendente' AND now() - created_at > INTERVAL '5 minutes'
-    RETURNING id;
-  `;
-
-  try {
-    const { rows } = await pool.query(query);
-    rows.forEach(row => {
-      console.log(`Compra ${row.id} cancelada.`);
-    });
-  } catch (error) {
-    console.error("Erro ao cancelar compras pendentes:", error);
-  }
-};
-
-// Chama a função a cada X tempo para verificar compras pendentes
-setInterval(cancelarComprasPendentes, 300000); // 300000 ms = 5 minutos
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
