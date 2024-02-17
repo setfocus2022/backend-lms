@@ -534,19 +534,26 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
 
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
-  
-  const query = 'SELECT c.* FROM cursos c INNER JOIN compras_cursos cc ON c.id = cc.curso_id WHERE cc.user_id = $1';
+
+  const query = `
+    SELECT c.* 
+    FROM cursos c 
+    INNER JOIN compras_cursos cc 
+    ON c.id = cc.curso_id 
+    WHERE cc.user_id = $1 AND cc.status = 'aprovado'
+  `;
+
   try {
     const client = await pool.connect();
     const { rows } = await client.query(query, [userId]);
     client.release();
-    console.log(rows); // Adicione esta linha para verificar os dados
     res.json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
+    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados com status aprovado' });
   }
 });
+
 // Exemplo de rota para obter aulas de um curso
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
   const { cursoId } = req.params;
