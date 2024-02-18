@@ -579,6 +579,28 @@ app.get('/api/user/profile/:username', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro interno do servidor' });
   }
 });
+const cron = require('node-cron');
+
+// Rotina que executa todos os dias à meia-noite GMT-3
+cron.schedule('0 0 0 * * *', async () => {
+  console.log('Executando a rotina de verificação de fim de acesso...');
+  try {
+    const client = await pool.connect();
+    // Exclui entradas onde o fim do acesso já passou
+    const query = `
+      DELETE FROM compras_cursos 
+      WHERE data_fim_acesso < NOW() AT TIME ZONE 'America/Sao_Paulo';
+    `;
+    const result = await client.query(query);
+    console.log(`Exclusão concluída: ${result.rowCount} curso(s) removido(s) do banco de dados.`);
+    client.release();
+  } catch (error) {
+    console.error('Erro durante a rotina de limpeza:', error);
+  }
+}, {
+  scheduled: true,
+  timezone: "America/Sao_Paulo"
+});
 // Adiciona uma rota para verificar o status de uma compra específica
 app.get('/api/compra/status/:compraId', async (req, res) => {
   const { compraId } = req.params;
