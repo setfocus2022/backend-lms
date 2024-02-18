@@ -249,19 +249,19 @@ app.delete('/api/delete-aluno/:userId', async (req, res) => {
 });
 app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
   const { cursoId } = req.params;
-  const userId = req.body.userId; // Certifique-se de enviar userId no corpo da requisição
+  const { userId } = req.body;
 
   try {
-    const { rows: cursoRows } = await pool.query(
+    // Consulta para obter os dados do curso comprado
+    const cursoRows = await pool.query(
       'SELECT periodo, data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
       [userId, cursoId]
     );
 
-    if (cursoRows.length > 0 && cursoRows[0].data_inicio_acesso == null) {
+    if (cursoRows.rowCount > 0 && cursoRows.rows[0].data_inicio_acesso == null) {
       let intervalo;
-      
       // Definindo o intervalo de acordo com o período do curso
-      switch(cursoRows[0].periodo) {
+      switch(cursoRows.rows[0].periodo) {
         case '15d':
           intervalo = '15 days';
           break;
@@ -275,17 +275,17 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
           return res.status(400).json({ success: false, message: 'Período de curso inválido.' });
       }
 
-      const updateQuery = `
+      // Atualiza a data de início e fim de acesso, convertendo para o fuso horário de São Paulo
+      await pool.query(`
         UPDATE compras_cursos 
-        SET data_inicio_acesso = NOW(), 
-            data_fim_acesso = NOW() + INTERVAL '${intervalo}'
+        SET 
+          data_inicio_acesso = (NOW() AT TIME ZONE 'America/Sao_Paulo'), 
+          data_fim_acesso = ((NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '${intervalo}')
         WHERE user_id = $1 AND curso_id = $2
-      `;
-      
-      await pool.query(updateQuery, [userId, cursoId]);
+      `, [userId, cursoId]);
 
       res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
-    } else if (cursoRows.length > 0) {
+    } else if (cursoRows.rowCount > 0) {
       res.json({ success: true, message: 'Acesso ao curso já registrado anteriormente.' });
     } else {
       res.status(404).json({ success: false, message: 'Curso não encontrado.' });
@@ -295,6 +295,7 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao registrar acesso ao curso.', error: error.message });
   }
 });
+
 
 app.post('/api/cursos/progresso', async (req, res) => {
   const { userId, cursoId, aulaAtual, progresso } = req.body;
