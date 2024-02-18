@@ -140,26 +140,6 @@ app.post('/api/add-aluno', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao criar usuário.' });
   }
 });
-app.post('/api/cursos/acesso-iniciar', async (req, res) => {
-  const { userId, cursoId, dataInicio, dataFim } = req.body;
-
-  try {
-    const client = await pool.connect();
-
-    const query = `
-      UPDATE compras_cursos
-      SET data_inicio_acesso = $1, data_fim_acesso = $2
-      WHERE user_id = $3 AND curso_id = $4 AND data_inicio_acesso IS NULL
-    `;
-    await client.query(query, [new Date(dataInicio), new Date(dataFim), userId, cursoId]);
-    client.release();
-
-    res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao registrar acesso ao curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao registrar acesso' });
-  }
-});
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
@@ -265,6 +245,35 @@ app.delete('/api/delete-aluno/:userId', async (req, res) => {
   } catch (error) {
     console.error('Erro ao excluir aluno:', error);
     res.status(500).json({ success: false, message: 'Erro ao excluir aluno' });
+  }
+});
+app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
+  const { cursoId } = req.params;
+  const userId = req.body.userId; // Certifique-se de enviar userId no corpo da requisição
+
+  try {
+    const { rows: cursoRows } = await pool.query(
+      'SELECT data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
+      [userId, cursoId]
+    );
+
+    if (cursoRows.length > 0 && cursoRows[0].data_inicio_acesso == null) {
+      let periodo = '15 days'; // Default para 15d, ajuste conforme necessário
+      // Verificar e ajustar o período baseado na sua lógica/coluna específica
+      // Exemplo: if (cursoRows[0].periodo === '30d') periodo = '30 days';
+
+      await pool.query(
+        'UPDATE compras_cursos SET data_inicio_acesso = NOW(), data_fim_acesso = NOW() + INTERVAL $1 WHERE user_id = $2 AND curso_id = $3',
+        [periodo, userId, cursoId]
+      );
+
+      res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
+    } else {
+      res.status(400).json({ success: false, message: 'Acesso já registrado ou curso não encontrado.' });
+    }
+  } catch (error) {
+    console.error('Erro ao registrar acesso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao registrar acesso ao curso.' });
   }
 });
 
