@@ -104,6 +104,22 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+const deleteExpiredPurchases = async () => {
+  const query = `
+    DELETE FROM compras_cursos 
+    WHERE status = 'pendente' AND now() - created_at > INTERVAL '5 minutes'
+  `;
+
+  try {
+    await pool.query(query);
+    console.log('Compras pendentes expiradas foram excluídas.');
+  } catch (error) {
+    console.error('Erro ao excluir compras pendentes expiradas:', error);
+  }
+};
+
+// Definindo a função para ser executada periodicamente
+setInterval(deleteExpiredPurchases, 300000); // Executa a cada 5 minutos (300000 ms)
 
 
 app.post('/api/add-aluno', async (req, res) => {
