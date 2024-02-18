@@ -141,25 +141,17 @@ app.post('/api/add-aluno', async (req, res) => {
   }
 });
 app.post('/api/cursos/acesso-iniciar', async (req, res) => {
-  const { userId, cursoId, periodo } = req.body;
-  const periodoMap = {
-    '15d': '15 days',
-    '30d': '30 days',
-    '6m': '6 months'
-  };
+  const { userId, cursoId, dataInicio, dataFim } = req.body;
 
   try {
     const client = await pool.connect();
-    const dataInicio = new Date();
-    const dataFim = new Date(dataInicio);
-    dataFim.setDate(dataFim.getDate() + (periodoMap[periodo] || '15 days'));
 
     const query = `
       UPDATE compras_cursos
       SET data_inicio_acesso = $1, data_fim_acesso = $2
       WHERE user_id = $3 AND curso_id = $4 AND data_inicio_acesso IS NULL
     `;
-    await client.query(query, [dataInicio, dataFim, userId, cursoId]);
+    await client.query(query, [new Date(dataInicio), new Date(dataFim), userId, cursoId]);
     client.release();
 
     res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
