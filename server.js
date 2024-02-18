@@ -37,11 +37,12 @@ app.post("/api/checkout", async (req, res) => {
   try {
     const compras = await Promise.all(items.map(async item => {
       const { rows } = await pool.query(
-        'INSERT INTO compras_cursos (user_id, curso_id, status, periodo) VALUES ($1, $2, $3, $4) RETURNING id',
+        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
         [userId, item.id, 'pendente', item.periodo] // Incluindo o período de acesso
       );
       return rows[0].id;
     }));
+    
 
     const preference = {
       items: items.map((item, index) => ({
