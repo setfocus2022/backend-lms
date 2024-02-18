@@ -253,27 +253,46 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
 
   try {
     const { rows: cursoRows } = await pool.query(
-      'SELECT data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
+      'SELECT periodo, data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
       [userId, cursoId]
     );
 
     if (cursoRows.length > 0 && cursoRows[0].data_inicio_acesso == null) {
-      let periodo = '15 days'; // Default para 15d, ajuste conforme necessário
-      // Verificar e ajustar o período baseado na sua lógica/coluna específica
-      // Exemplo: if (cursoRows[0].periodo === '30d') periodo = '30 days';
+      let intervalo;
+      
+      // Definindo o intervalo de acordo com o período do curso
+      switch(cursoRows[0].periodo) {
+        case '15d':
+          intervalo = '15 days';
+          break;
+        case '30d':
+          intervalo = '30 days';
+          break;
+        case '6m':
+          intervalo = '6 months';
+          break;
+        default:
+          return res.status(400).json({ success: false, message: 'Período de curso inválido.' });
+      }
 
-      await pool.query(
-        'UPDATE compras_cursos SET data_inicio_acesso = NOW(), data_fim_acesso = NOW() + INTERVAL $1 WHERE user_id = $2 AND curso_id = $3',
-        [periodo, userId, cursoId]
-      );
+      const updateQuery = `
+        UPDATE compras_cursos 
+        SET data_inicio_acesso = NOW(), 
+            data_fim_acesso = NOW() + INTERVAL '${intervalo}'
+        WHERE user_id = $1 AND curso_id = $2
+      `;
+      
+      await pool.query(updateQuery, [userId, cursoId]);
 
       res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
+    } else if (cursoRows.length > 0) {
+      res.json({ success: true, message: 'Acesso ao curso já registrado anteriormente.' });
     } else {
-      res.status(400).json({ success: false, message: 'Acesso já registrado ou curso não encontrado.' });
+      res.status(404).json({ success: false, message: 'Curso não encontrado.' });
     }
   } catch (error) {
     console.error('Erro ao registrar acesso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao registrar acesso ao curso.' });
+    res.status(500).json({ success: false, message: 'Erro ao registrar acesso ao curso.', error: error.message });
   }
 });
 
