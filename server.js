@@ -84,6 +84,9 @@ async function processarNotificacao(notification) {
     throw error;
   }
 }
+
+
+
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
@@ -108,20 +111,19 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 const deleteExpiredPurchases = async () => {
   const query = `
     DELETE FROM compras_cursos 
-    WHERE status = 'pendente' AND now() - created_at > INTERVAL '5 minutes'
+    WHERE status = 'pendente' AND now() - created_at > INTERVAL '5 minutes';
   `;
 
   try {
-    await pool.query(query);
-    console.log('Compras pendentes expiradas foram excluídas.');
+    const result = await pool.query(query);
+    console.log(`${result.rowCount} compras pendentes expiradas foram excluídas.`);
   } catch (error) {
     console.error('Erro ao excluir compras pendentes expiradas:', error);
   }
 };
 
-// Definindo a função para ser executada periodicamente
-setInterval(deleteExpiredPurchases, 300000); // Executa a cada 5 minutos (300000 ms)
-
+// Executa a função a cada 5 minutos
+setInterval(deleteExpiredPurchases, 300000);
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
