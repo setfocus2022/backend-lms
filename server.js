@@ -35,14 +35,14 @@ app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
 
   try {
-    const compras = await Promise.all(items.map(async item => {
-      const { rows } = await pool.query(
-        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
-        [userId, item.id, 'pendente', item.periodo] // Incluindo o período de acesso
-      );
-      return rows[0].id;
-    }));
-    
+   const compras = await Promise.all(items.map(async item => {
+  const { rows } = await pool.query(
+    "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
+    [userId, item.id, 'pendente', item.periodo] // Incluindo o período de acesso
+  );
+  return rows[0].id;
+}));
+
 
     const preference = {
       items: items.map((item, index) => ({
@@ -541,7 +541,7 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
       const status = rows[0].status;
       res.json({ status });
     } else {
-      
+      // Modificação aqui: caso não encontre a compra, assume que foi excluída por expiração
       res.status(404).json({ message: 'Compra não encontrada ou expirada.' });
     }
   } catch (error) {
@@ -549,6 +549,7 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+
 
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
