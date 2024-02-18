@@ -541,7 +541,8 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
       const status = rows[0].status;
       res.json({ status });
     } else {
-      res.status(404).json({ message: 'Compra não encontrada.' });
+      
+      res.status(404).json({ message: 'Compra não encontrada ou expirada.' });
     }
   } catch (error) {
     console.error('Erro ao buscar o status da compra:', error);
