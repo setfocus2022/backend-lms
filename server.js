@@ -598,15 +598,13 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
 
   const query = `
-    SELECT c.* 
-    FROM cursos c 
-    INNER JOIN compras_cursos cc 
-    ON c.id = cc.curso_id 
+    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
+    FROM cursos c
+    INNER JOIN compras_cursos cc ON c.id = cc.curso_id
     WHERE cc.user_id = $1 AND cc.status = 'aprovado'
   `;
 
@@ -616,10 +614,11 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
     client.release();
     res.json(rows);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados com status aprovado' });
+    console.error('Erro ao listar cursos comprados:', error);
+    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
   }
 });
+
 
 // Exemplo de rota para obter aulas de um curso
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
