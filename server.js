@@ -37,22 +37,31 @@ app.post("/api/checkout", async (req, res) => {
   try {
     const compras = await Promise.all(items.map(async item => {
       const { rows } = await pool.query(
-        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW() AT TIME ZONE 'America/Sao_Paulo') RETURNING id",
-        [userId, item.id, 'pendente', item.periodo] // Incluindo o período de acesso
+        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
+        [userId, item.id, 'pendente', item.periodo]
       );
       return rows[0].id;
     }));
 
-    
+    // Inicia um monitoramento para cada compra registrada
+    compras.forEach(compraId => {
+      setTimeout(async () => {
+        const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+        if (rows.length > 0 && rows[0].status === 'pendente') {
+          await pool.query('DELETE FROM compras_cursos WHERE id = $1', [compraId]);
+          console.log(`Compra pendente expirada com ID ${compraId} foi excluída.`);
+        }
+      }, 300000); // 5 minutos
+    });
 
     const preference = {
-      items: items.map((item, index) => ({
+      items: items.map(item => ({
         id: item.id,
         title: item.title,
         unit_price: item.unit_price,
         quantity: 1,
       })),
-      external_reference: compras.join('-'), // Concatena os IDs das compras
+      external_reference: compras.join('-'),
     };
 
     const response = await mercadopago.preferences.create(preference);
@@ -109,22 +118,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
-const deleteExpiredPurchases = async () => {
-  const query = `
-    DELETE FROM compras_cursos 
-    WHERE status = 'pendente' AND now() - created_at > INTERVAL '5 minutes';
-  `;
 
-  try {
-    const result = await pool.query(query);
-    console.log(`${result.rowCount} compras pendentes expiradas foram excluídas.`);
-  } catch (error) {
-    console.error('Erro ao excluir compras pendentes expiradas:', error);
-  }
-};
-
-// Executa a função a cada 5 minutos
-setInterval(deleteExpiredPurchases, 300000);
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
