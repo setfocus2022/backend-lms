@@ -642,13 +642,28 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
   const { cursoId } = req.params;
   try {
+    // Primeiro, busca os detalhes do curso, incluindo o caminho_pdf
+    const cursoResposta = await pool.query('SELECT caminho_pdf FROM cursos WHERE id = $1', [cursoId]);
     
-    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
-    res.json(aulas.rows);
+    if (cursoResposta.rows.length === 0) {
+      return res.status(404).send('Curso não encontrado');
+    }
+    
+    const caminhoPdf = cursoResposta.rows[0].caminho_pdf;
+    
+    // Depois, busca as aulas do curso
+    const aulasResposta = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
+    
+    // Adiciona o caminho_pdf ao resultado das aulas
+    const aulasComPdf = aulasResposta.rows.map(aula => ({ ...aula, caminho_pdf: caminhoPdf }));
+
+    res.json(aulasComPdf);
   } catch (err) {
+    console.error('Erro ao buscar aulas e PDF do curso:', err);
     res.status(500).send('Erro no servidor');
   }
 });
+
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
 
