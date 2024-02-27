@@ -639,22 +639,16 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
 
 
 // Exemplo de rota para obter aulas de um curso
-app.get('/api/cursos/:cursoId', async (req, res) => {
+app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
   const { cursoId } = req.params;
   try {
-      // Substitua esta consulta pela lógica adequada para buscar os detalhes do curso
-      const { rows } = await pool.query('SELECT * FROM cursos WHERE id = $1', [cursoId]);
-      if (rows.length > 0) {
-          res.json(rows[0]);
-      } else {
-          res.status(404).send('Curso não encontrado');
-      }
+    
+    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
+    res.json(aulas.rows);
   } catch (err) {
-      console.error('Erro no servidor:', err);
-      res.status(500).send('Erro no servidor');
+    res.status(500).send('Erro no servidor');
   }
 });
-
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
 
