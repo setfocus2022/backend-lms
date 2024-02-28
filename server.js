@@ -638,23 +638,17 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
 });
 
 
+// Exemplo de rota para obter aulas de um curso
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
   const { cursoId } = req.params;
   try {
-    // Obter as aulas
-    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
     
-    // Novo: Obter o caminho do PDF do curso
-    const caminhoPdfResult = await pool.query('SELECT caminho_pdf FROM cursos WHERE id = $1', [cursoId]);
-    const caminhoPdf = caminhoPdfResult.rows[0]?.caminho_pdf || '';
-
-    // Enviar tanto as aulas quanto o caminho do PDF na resposta
-    res.json({ aulas: aulas.rows, caminhoPdf });
+    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
+    res.json(aulas.rows);
   } catch (err) {
     res.status(500).send('Erro no servidor');
   }
 });
-
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
 
