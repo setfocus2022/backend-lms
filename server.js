@@ -649,6 +649,17 @@ app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
     res.status(500).send('Erro no servidor');
   }
 });
+
+app.get('/api/cursos/:cursoId/avaliacoes', async (req, res) => {
+  const { cursoId } = req.params;
+  try {
+    const avaliacoes = await pool.query('SELECT * FROM avaliacoes WHERE curso_id = $1', [cursoId]);
+    res.json(avaliacoes.rows);
+  } catch (err) {
+    res.status(500).send('Erro no servidor');
+  }
+});
+
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
 
