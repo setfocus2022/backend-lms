@@ -26,6 +26,7 @@
     "nodemailer": "^6.9.3",
     "pg": "^8.11.3",
     "phantomjs-prebuilt": "^2.1.16",
+    "puppeteer": "^22.3.0",
     "serverless-http": "^3.2.0",
     "socket.io": "^4.7.4",
     "twilio": "^4.11.2",
