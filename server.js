@@ -21,7 +21,7 @@ app.use(cors({
   credentials: true
 }));
 
-
+app.use('/pdf', express.static('pdfs'));
 
 app.use(express.json());
 
