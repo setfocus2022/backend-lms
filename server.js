@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
+const pdf = require('html-pdf');
 
 const app = express();
 
@@ -30,6 +31,39 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
+
+app.post('/gerar-certificado', (req, res) => {
+  const { nomeAluno, nomeCurso } = req.body;
+
+  // Aqui você definiria seu template HTML para o certificado
+  const conteudoHTML = `
+    <html>
+      <head>
+        <title>Certificado</title>
+      </head>
+      <body>
+        <h1>Certificado de Conclusão</h1>
+        <p>Este é para certificar que <strong>${nomeAluno}</strong> completou o curso <strong>${nomeCurso}</strong>.</p>
+      </body>
+    </html>
+  `;
+
+  // Opções de configuração para o PDF
+  const opcoes = { format: 'Letter' };
+
+  // Gerando o PDF a partir do HTML
+  pdf.create(conteudoHTML, opcoes).toBuffer((err, buffer) => {
+    if (err) {
+      res.status(500).send('Erro ao gerar PDF');
+      return;
+    }
+
+    // Enviando o PDF gerado como resposta
+    res.type('pdf');
+    res.end(buffer, 'binary');
+  });
+});
+
 
 app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
