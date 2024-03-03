@@ -31,15 +31,13 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
-// Rota para gerar o PDF
 app.get('/api/generate-pdf/:username', async (req, res) => {
-  const username = req.params.username;
+  const { username } = req.params;
 
-  // Aqui você deve buscar as informações do usuário e do curso no banco de dados
+  // Aqui, você buscaria as informações do usuário e do curso no banco de dados
+  // Exemplo de dados estáticos para demonstração
   const userData = { nome: 'Nome do Usuário', curso: 'Nome do Curso' };
 
-  // Criação do documento PDF
   const doc = new PDFDocument();
   let buffers = [];
   doc.on('data', buffers.push.bind(buffers));
@@ -53,10 +51,10 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
     .end(pdfData);
   });
 
-  // Adicionar conteúdo ao PDF
-  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' });
-  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
-  doc.fontSize(16).text(`Por completar o curso ${userData.curso}`, { align: 'center' });
+  // Adicionando texto ao PDF
+  doc.fontSize(25).text('Certificado de Conclusão', 100, 50, { align: 'center' });
+  doc.fontSize(16).text(`Este certificado é concedido a: ${userData.nome}`, 100, 100, { align: 'center' });
+  doc.fontSize(16).text(`Por completar o curso: ${userData.curso}`, 100, 130, { align: 'center' });
 
   doc.end();
 });
