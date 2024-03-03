@@ -51,7 +51,7 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
   doc.moveDown(15);
 
   // Adicionar conteúdo ao PDF
-  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' }).fillColor('#FFF');
+  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' });
   doc.moveDown();
   doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
   doc.moveDown();
