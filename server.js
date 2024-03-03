@@ -7,7 +7,7 @@ const jwtSecret = 'suus02201998##';
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const app = express();
-
+const path = require('path');
 const pool = new Pool({
   connectionString: 'postgresql://connectfamead:q0rRK1gyMALN@ep-white-sky-a52j6d6i.us-east-2.aws.neon.tech/lms_mmstrok?sslmode=require',
   ssl: {
