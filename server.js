@@ -45,8 +45,9 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
 
   // Adicionar o logo
   const logoPath = path.join(__dirname, 'images', 'logo2.png');
-  doc.image(logoPath, doc.page.width / 2 - 50, 50, { width: 300 }).fillColor('#FFF');
+  doc.image(logoPath, doc.page.width / 2 - 150, 50, { width: 300 });
 
+  // Move o texto para baixo para acomodar o logo maior
   doc.moveDown(3);
 
   // Adicionar conteúdo ao PDF
