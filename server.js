@@ -48,7 +48,7 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
   doc.image(logoPath, doc.page.width / 2 - 150, 50, { width: 200 });
 
   // Move o texto para baixo para acomodar o logo maior
-  doc.moveDown(25);
+  doc.moveDown(8);
 
   // Adicionar conteúdo ao PDF
   doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' }).fillColor('#FFF');
