@@ -31,12 +31,20 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
 app.get('/api/generate-pdf/:username', async (req, res) => {
   const username = req.params.username;
 
-  // Suponha que esses dados sejam obtidos do banco de dados
-  const userData = { nome: 'Nome do Usuário', curso: 'Nome do Curso' };
+  // Buscar informações do usuário
+  const userQuery = 'SELECT * FROM users WHERE username = $1';
+  const userResult = await pool.query(userQuery, [username]);
+  const userData = userResult.rows[0];
+
+  // Buscar informações do curso - assumindo que temos o ID do curso
+  // O ID do curso pode ser passado de alguma forma, aqui é apenas um exemplo
+  const cursoId = 1; // Este ID deve ser dinamicamente determinado
+  const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
+  const cursoResult = await pool.query(cursoQuery, [cursoId]);
+  const cursoData = cursoResult.rows[0];
 
   // Cria um documento PDF em formato paisagem
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
@@ -57,10 +65,11 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
   doc.moveDown();
   doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
   doc.moveDown();
-  doc.text(`Por completar o curso ${userData.curso}`, { align: 'center' });
+  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' });
 
   doc.end();
 });
+
 app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
 
