@@ -31,18 +31,13 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-app.get('/api/generate-pdf/:username', async (req, res) => {
-  const username = req.params.username;
+app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
+  const { username, cursoId } = req.params;
 
-  // Buscar informações do usuário
   const userQuery = 'SELECT * FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
   const userData = userResult.rows[0];
 
-  // Suponha que você tenha uma maneira de obter o cursoId aqui
-  const cursoId = 1; // Deve ser determinado dinamicamente
-
-  // Buscar informações do curso
   const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
   const cursoResult = await pool.query(cursoQuery, [cursoId]);
   const cursoData = cursoResult.rows[0];
