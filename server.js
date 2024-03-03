@@ -43,19 +43,15 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
   // Cor de fundo
   doc.rect(0, 0, doc.page.width, doc.page.height).fill('#15283E');
 
-  // Adicionar o logo
+  // Adicionar o logo com tamanho ajustado
   const logoPath = path.join(__dirname, 'images', 'logo2.png');
-  doc.image(logoPath, doc.page.width / 2 - 150, 50, { width: 300 });
+  // Ajuste as dimensões e posição conforme necessário
+  doc.image(logoPath, doc.page.width / 2 - 150, 60, { width: 300 });
 
-  // Move o texto para baixo para acomodar o logo maior
-  doc.moveDown(20);
-
-  // Adicionar conteúdo ao PDF
-  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' }).fillColor('#FFF');
-  doc.moveDown();
-  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
-  doc.moveDown();
-  doc.text(`Por completar o curso ${userData.curso}`, { align: 'center' });
+  // Ajustar a posição do texto
+  doc.fillColor('#FFF').fontSize(25).text('Certificado de Conclusão', { align: 'center', baseline: 'middle' }, 300);
+  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' }, 350);
+  doc.text(`Por completar o curso ${userData.curso}`, { align: 'center' }, 370);
 
   doc.end();
 
