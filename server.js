@@ -34,20 +34,27 @@ mercadopago.configure({
 app.get('/api/generate-pdf/:username', async (req, res) => {
   const username = req.params.username;
 
-  // Buscar informações do usuário
-  const userQuery = 'SELECT * FROM users WHERE username = $1';
-  const userResult = await pool.query(userQuery, [username]);
-  const userData = userResult.rows[0];
-
-  // Buscar informações do curso - assumindo que temos o ID do curso
-  // O ID do curso pode ser passado de alguma forma, aqui é apenas um exemplo
-  const cursoId = 1; // Este ID deve ser dinamicamente determinado
-  const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
-  const cursoResult = await pool.query(cursoQuery, [cursoId]);
-  const cursoData = cursoResult.rows[0];
+  // Suponha que esses dados sejam obtidos do banco de dados
+  const userData = { nome: 'Nome do Usuário', curso: 'Nome do Curso' };
 
   // Cria um documento PDF em formato paisagem
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
+
+  // Cor de fundo
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#15283E');
+
+  // Adicionar o logo
+  const logoPath = path.join(__dirname, 'images', 'logo2.png');
+  doc.image(logoPath, doc.page.width / 2 - 50, 50, { width: 100 }).fillColor('#FFF');
+
+  // Adicionar conteúdo ao PDF
+  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' }).fillColor('#FFF');
+  doc.moveDown();
+  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
+  doc.moveDown();
+  doc.text(`Por completar o curso ${userData.curso}`, { align: 'center' });
+
+  doc.end();
 
   let buffers = [];
   doc.on('data', buffers.push.bind(buffers));
@@ -59,15 +66,6 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
       'Content-disposition': 'attachment;filename=certificado.pdf',
     }).end(pdfData);
   });
-
-  // Adicionar conteúdo ao PDF
-  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' });
-  doc.moveDown();
-  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
-  doc.moveDown();
-  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' });
-
-  doc.end();
 });
 
 app.post("/api/checkout", async (req, res) => {
