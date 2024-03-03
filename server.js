@@ -4,8 +4,8 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
-const pdf = require('html-pdf');
-
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
 const app = express();
 
 const pool = new Pool({
@@ -32,38 +32,34 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 
-app.post('/gerar-certificado', (req, res) => {
-  const { nomeAluno, nomeCurso } = req.body;
+// Rota para gerar o PDF
+app.get('/api/generate-pdf/:username', async (req, res) => {
+  const username = req.params.username;
 
-  // Aqui você definiria seu template HTML para o certificado
-  const conteudoHTML = `
-    <html>
-      <head>
-        <title>Certificado</title>
-      </head>
-      <body>
-        <h1>Certificado de Conclusão</h1>
-        <p>Este é para certificar que <strong>${nomeAluno}</strong> completou o curso <strong>${nomeCurso}</strong>.</p>
-      </body>
-    </html>
-  `;
+  // Aqui você deve buscar as informações do usuário e do curso no banco de dados
+  const userData = { nome: 'Nome do Usuário', curso: 'Nome do Curso' };
 
-  // Opções de configuração para o PDF
-  const opcoes = { format: 'Letter' };
-
-  // Gerando o PDF a partir do HTML
-  pdf.create(conteudoHTML, opcoes).toBuffer((err, buffer) => {
-    if (err) {
-      res.status(500).send('Erro ao gerar PDF');
-      return;
-    }
-
-    // Enviando o PDF gerado como resposta
-    res.type('pdf');
-    res.end(buffer, 'binary');
+  // Criação do documento PDF
+  const doc = new PDFDocument();
+  let buffers = [];
+  doc.on('data', buffers.push.bind(buffers));
+  doc.on('end', () => {
+    let pdfData = Buffer.concat(buffers);
+    res.writeHead(200, {
+      'Content-Length': Buffer.byteLength(pdfData),
+      'Content-Type': 'application/pdf',
+      'Content-disposition': 'attachment;filename=certificado.pdf',
+    })
+    .end(pdfData);
   });
-});
 
+  // Adicionar conteúdo ao PDF
+  doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' });
+  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' });
+  doc.fontSize(16).text(`Por completar o curso ${userData.curso}`, { align: 'center' });
+
+  doc.end();
+});
 
 app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
