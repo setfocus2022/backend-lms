@@ -34,9 +34,18 @@ mercadopago.configure({
 app.get('/api/generate-pdf/:username', async (req, res) => {
   const username = req.params.username;
 
-  // Suponha que esses dados sejam obtidos do banco de dados
-  const userData = { nome: 'Nome do Usuário', curso: 'Nome do Curso' };
+  // Buscar informações do usuário
+  const userQuery = 'SELECT * FROM users WHERE username = $1';
+  const userResult = await pool.query(userQuery, [username]);
+  const userData = userResult.rows[0];
 
+  // Suponha que você tenha uma maneira de obter o cursoId aqui
+  const cursoId = 1; // Deve ser determinado dinamicamente
+
+  // Buscar informações do curso
+  const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
+  const cursoResult = await pool.query(cursoQuery, [cursoId]);
+  const cursoData = cursoResult.rows[0];
   // Cria um documento PDF em formato paisagem
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
 
@@ -51,8 +60,7 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
   // Ajustar a posição do texto
   doc.fillColor('#FFF').fontSize(25).text('Certificado de Conclusão', { align: 'center', baseline: 'middle' }, 300);
   doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' }, 350);
-  doc.text(`Por completar o curso ${userData.curso}`, { align: 'center' }, 370);
-
+  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' }, 370);
   doc.end();
 
   let buffers = [];
