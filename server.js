@@ -45,10 +45,10 @@ app.get('/api/generate-pdf/:username', async (req, res) => {
 
   // Adicionar o logo
   const logoPath = path.join(__dirname, 'images', 'logo2.png');
-  doc.image(logoPath, doc.page.width / 2 - 150, 50, { width: 200 });
+  doc.image(logoPath, doc.page.width / 2 - 150, 50, { width: 300 });
 
   // Move o texto para baixo para acomodar o logo maior
-  doc.moveDown(8);
+  doc.moveDown(15);
 
   // Adicionar conteúdo ao PDF
   doc.fontSize(25).text('Certificado de Conclusão', { align: 'center' }).fillColor('#FFF');
