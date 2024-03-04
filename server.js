@@ -386,7 +386,7 @@ app.get('/api/cursos/progresso/:userId/:cursoId', async (req, res) => {
     const query = 'SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
     const { rows } = await client.query(query, [userId, cursoId]);
     client.release();
-    res.json(rows.length > 0 ? rows[0] : { progresso: 0, aula_atual: null });
+    res.json(rows.length > 0 ? rows[0] : { progresso: 0});
   } catch (error) {
     console.error('Erro ao recuperar progresso:', error);
     res.status(500).json({ success: false, message: 'Erro ao recuperar progresso' });
