@@ -31,6 +31,20 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
+
+app.post('/api/cursos/concluir', async (req, res) => {
+  const { userId, cursoId } = req.body;
+
+  try {
+    const query = 'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3';
+    await pool.query(query, ['concluido', userId, cursoId]);
+    res.json({ success: true, message: 'Status do curso atualizado para concluído.' });
+  } catch (error) {
+    console.error('Erro ao atualizar status do curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status do curso.' });
+  }
+});
+
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
