@@ -45,6 +45,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
