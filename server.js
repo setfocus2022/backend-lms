@@ -34,10 +34,13 @@ mercadopago.configure({
 
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
-  console.log("Recebido userId:", userId, "cursoId:", cursoId); // Adicione esta linha para debug
+  console.log("Recebido userId:", userId, "cursoId:", cursoId);
 
   try {
+    // Definindo a consulta SQL para atualizar o status em 'progresso_cursos'
+    const query = 'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3';
     const result = await pool.query(query, ['concluido', userId, cursoId]);
+
     if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso atualizado para concluído.' });
     } else {
@@ -47,7 +50,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
     console.error('Erro ao atualizar status do curso:', error);
     res.status(500).json({ success: false, message: 'Erro ao atualizar status do curso.' });
   }
-  
 });
 
 
