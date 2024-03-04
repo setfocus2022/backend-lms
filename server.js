@@ -365,6 +365,21 @@ app.post('/api/cursos/progresso', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar progresso', error: error.message });
   }
 });
+app.get('/api/verificar-acesso/:userId/:cursoId', async (req, res) => {
+  const { userId, cursoId } = req.params;
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM compras_cursos WHERE user_id = $1 AND curso_id = $2 AND status = $3',
+      [userId, cursoId, 'aprovado']
+    );
+
+    res.json({ temAcesso: rows.length > 0 });
+  } catch (error) {
+    console.error('Erro ao verificar acesso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao verificar acesso' });
+  }
+});
 
 app.get('/api/cursos', async (req, res) => {
   try {
