@@ -34,6 +34,7 @@ mercadopago.configure({
 
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
+  console.log("Recebido userId:", userId, "cursoId:", cursoId); // Adicione esta linha para debug
 
   try {
     const query = 'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3';
