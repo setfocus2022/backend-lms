@@ -37,13 +37,19 @@ app.post('/api/cursos/concluir', async (req, res) => {
 
   try {
     const query = 'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3';
-    await pool.query(query, ['concluido', userId, cursoId]);
-    res.json({ success: true, message: 'Status do curso atualizado para concluído.' });
+    const result = await pool.query(query, ['concluido', userId, cursoId]);
+
+    if (result.rowCount > 0) {
+      res.json({ success: true, message: 'Status do curso atualizado para concluído.' });
+    } else {
+      res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
+    }
   } catch (error) {
     console.error('Erro ao atualizar status do curso:', error);
     res.status(500).json({ success: false, message: 'Erro ao atualizar status do curso.' });
   }
 });
+
 
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
