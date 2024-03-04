@@ -347,17 +347,17 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
 
 
 app.post('/api/cursos/progresso', async (req, res) => {
-  const { userId, cursoId, aulaAtual, progresso } = req.body;
+  const { userId, cursoId, progresso } = req.body;
 
   try {
     const client = await pool.connect();
     const query = `
-      INSERT INTO progresso_cursos (user_id, curso_id, aula_atual, progresso)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO progresso_cursos (user_id, curso_id,  progresso)
+      VALUES ($1, $2, $3)
       ON CONFLICT (user_id, curso_id) DO UPDATE
-      SET aula_atual = $3, progresso = $4;
+      SET  progresso = $3;
     `;
-    await client.query(query, [userId, cursoId, aulaAtual, progresso]);
+    await client.query(query, [userId, cursoId,  progresso]);
     client.release();
     res.json({ success: true, message: 'Progresso atualizado com sucesso!' });
   } catch (error) {
