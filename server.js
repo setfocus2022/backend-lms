@@ -707,17 +707,16 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
 });
 
 
-// Exemplo de rota para obter aulas de um curso
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
   const { cursoId } = req.params;
   try {
-    
-    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1 ORDER BY ordem', [cursoId]);
+    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1', [cursoId]);
     res.json(aulas.rows);
   } catch (err) {
     res.status(500).send('Erro no servidor');
   }
 });
+
 
 app.get('/api/cursos/:cursoId/avaliacoes', async (req, res) => {
   const { cursoId } = req.params;
