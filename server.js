@@ -428,21 +428,21 @@ app.get('/api/cursos', async (req, res) => {
   }
 });
 
-app.get('/api/cursos/progresso/:userId/:cursoId', async (req, res) => {
+app.get('/api/progresso/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
-
   try {
-    const client = await pool.connect();
-    const query = 'SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
-    const { rows } = await client.query(query, [userId, cursoId]);
-    client.release();
-    res.json(rows.length > 0 ? rows[0] : { progresso: 0});
+    const query = 'SELECT status FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
+    const { rows } = await pool.query(query, [userId, cursoId]);
+    if (rows.length > 0) {
+      res.json({ status: rows[0].status });
+    } else {
+      res.status(404).json({ message: 'Progresso não encontrado.' });
+    }
   } catch (error) {
-    console.error('Erro ao recuperar progresso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao recuperar progresso' });
+    console.error('Erro ao buscar o progresso:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
-
 
 // Rota para contar alunos cadastrados
 app.get('/api/alunos/count', async (req, res) => {
@@ -469,6 +469,25 @@ app.get('/api/alunos/password-changed/count', async (req, res) => {
     res.status(500).json({ success: false, message: "Erro interno do servidor" });
   }
 });
+
+app.get('/api/certificados/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const query = `
+      SELECT c.id, c.nome 
+      FROM cursos c
+      JOIN progresso_cursos pc ON c.id = pc.curso_id
+      WHERE pc.user_id = $1 AND pc.status = 'concluido'
+    `;
+    const { rows } = await pool.query(query, [userId]);
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar certificados:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
 
 // Rota para contar cursos cadastrados
 app.get('/api/cursos/count', async (req, res) => {
