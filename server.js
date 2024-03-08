@@ -97,23 +97,6 @@ app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
 
   try {
-    // Validação dos itens do carrinho com o banco de dados
-    for (const item of items) {
-      const curso = await pool.query('SELECT * FROM cursos WHERE id = $1', [item.id]);
-
-      if (curso.rows.length === 0) {
-        return res.status(400).json({ error: `Curso com ID ${item.id} não encontrado.` });
-      }
-
-      const cursoData = curso.rows[0];
-
-      // Verificar se o preço enviado corresponde a algum dos preços do curso no banco de dados
-      if (item.unit_price !== cursoData.valor_15d && item.unit_price !== cursoData.valor_30d && item.unit_price !== cursoData.valor_6m) {
-        return res.status(400).json({ error: `Preço do curso com ID ${item.id} não corresponde aos preços registrados.` });
-      }
-    }
-
-    // Processo de criação da preferência de pagamento
     const compras = await Promise.all(items.map(async item => {
       const { rows } = await pool.query(
         "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
@@ -150,7 +133,6 @@ app.post("/api/checkout", async (req, res) => {
     res.status(500).json({ error: error.toString() });
   }
 });
-
 
 
 
