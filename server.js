@@ -724,10 +724,6 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
 app.get('/api/cursos-comprados/:userId', async (req, res) => {
   const { userId } = req.params;
 
-  if (!userId || isNaN(parseInt(userId))) {
-    return res.status(400).json({ success: false, message: 'ID do usuário inválido' });
-  }
-
   const query = `
     SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
     FROM cursos c
@@ -745,7 +741,6 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
   }
 });
-
 
 
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
