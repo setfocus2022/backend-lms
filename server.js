@@ -14,10 +14,6 @@ const pool = new Pool({
     rejectUnauthorized: false,
   },
 });
-const adminRouter = express.Router();
-adminRouter.get('/test', (req, res) => {
-  res.json({ message: "Admin route is working!" });
-});
 
 app.use(cors({
   origin: ['http://localhost:3000', 'https://bell-bottoms-goat.cyclic.app', 'https://connect-ead.vercel.app'],
@@ -574,32 +570,17 @@ function authenticateToken(req, res, next) {
   })
 }
 
-function isAdmin(req, res, next) {
-  if (req.user.role !== "Admin") {
-    return res.status(403).json({ message: "Acesso negado" });
-  }
-  next();
-}
-app.use('/api/admin', authenticateToken, isAdmin, adminRouter);
-app.get("/api/role", authenticateToken, async (req, res) => {
-  const userId = req.user.userId;
-  
-  try {
-    const query = "SELECT role FROM users WHERE id = $1";
-    const result = await pool.query(query, [userId]);
-    
-    if (result.rows.length > 0) {
-      const { role } = result.rows[0];
-      res.json({ role });
-    } else {
-      res.status(404).json({ message: "Usuário não encontrado." });
+function authenticateAdmin(req, res, next) {
+  authenticateToken(req, res, () => {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Acesso negado: requer privilégios de administrador.' });
     }
-  } catch (error) {
-    console.error("Erro ao buscar role do usuário:", error);
-    res.status(500).json({ message: "Erro interno do servidor" });
-  }
-});
+    next();
+  });
+}
 
+// Usando o middleware
+app.use('/admin', authenticateAdmin);
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
