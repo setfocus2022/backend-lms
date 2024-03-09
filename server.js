@@ -592,7 +592,8 @@ function authenticateAdmin(req, res, next) {
 
 // Aplicar o middleware apenas às rotas /admin
 app.use('/admin', authenticateAdmin);
-app.get('/api/verify-role', authenticateToken, (req, res) => {
+app.get('/api/user/role', authenticateToken, (req, res) => {
+  // req.user é definido pelo middleware authenticateToken
   res.json({ role: req.user.role });
 });
 
