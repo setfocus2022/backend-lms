@@ -570,14 +570,16 @@ function authenticateToken(req, res, next) {
   })
 }
 
-const requireAdminRole = (req, res, next) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).send('Acesso negado');
+function isAdmin(req, res, next) {
+  if (req.user.role !== "Admin") {
+    return res.status(403).json({ message: "Acesso negado" });
   }
   next();
-};
-
-app.use('/admin', authenticateToken, requireAdminRole);
+}
+app.use('/api/admin', authenticateToken, isAdmin, adminRouter);
+app.get("/api/role", authenticateToken, (req, res) => {
+  res.json({ role: req.user.role });
+});
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
