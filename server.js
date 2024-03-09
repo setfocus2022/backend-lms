@@ -14,6 +14,10 @@ const pool = new Pool({
     rejectUnauthorized: false,
   },
 });
+const adminRouter = express.Router();
+adminRouter.get('/test', (req, res) => {
+  res.json({ message: "Admin route is working!" });
+});
 
 app.use(cors({
   origin: ['http://localhost:3000', 'https://bell-bottoms-goat.cyclic.app', 'https://connect-ead.vercel.app'],
