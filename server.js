@@ -31,7 +31,6 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
   try {
@@ -470,8 +469,8 @@ app.get('/api/alunos/password-changed/count', async (req, res) => {
   }
 });
 
-app.get('/api/certificados/:userId', async (req, res) => {
-  const { userId } = req.params;
+app.get('/api/certificados/:userId', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;  // Agora pegando o userId do token
 
   try {
     const query = `
