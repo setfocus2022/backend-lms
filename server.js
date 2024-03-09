@@ -581,9 +581,25 @@ function isAdmin(req, res, next) {
   next();
 }
 app.use('/api/admin', authenticateToken, isAdmin, adminRouter);
-app.get("/api/role", authenticateToken, (req, res) => {
-  res.json({ role: req.user.role });
+app.get("/api/role", authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+  
+  try {
+    const query = "SELECT role FROM users WHERE id = $1";
+    const result = await pool.query(query, [userId]);
+    
+    if (result.rows.length > 0) {
+      const { role } = result.rows[0];
+      res.json({ role });
+    } else {
+      res.status(404).json({ message: "Usuário não encontrado." });
+    }
+  } catch (error) {
+    console.error("Erro ao buscar role do usuário:", error);
+    res.status(500).json({ message: "Erro interno do servidor" });
+  }
 });
+
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
