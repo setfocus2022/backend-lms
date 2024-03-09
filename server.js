@@ -569,33 +569,6 @@ function authenticateToken(req, res, next) {
     next()
   })
 }
-function authenticateAdmin(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ message: 'Acesso negado: nenhum token fornecido.' });
-  }
-
-  jwt.verify(token, jwtSecret, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ message: 'Acesso negado: falha ao autenticar token.' });
-    }
-    
-    if (decoded.role !== 'Admin') {
-      return res.status(403).json({ message: 'Acesso negado: requer privilégios de administrador.' });
-    }
-
-    req.user = decoded;
-    next();
-  });
-}
-
-// Aplicar o middleware apenas às rotas /admin
-app.use('/admin', authenticateAdmin);
-app.get('/api/user/role', authenticateToken, (req, res) => {
-  // req.user é definido pelo middleware authenticateToken
-  res.json({ role: req.user.role });
-});
 
 
 app.post("/api/user/login", async (req, res) => {
