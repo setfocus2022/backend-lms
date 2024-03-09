@@ -75,6 +75,11 @@ app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
 
   const userQuery = 'SELECT * FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).send('Usuário não encontrado');
+  }
+
   const userData = userResult.rows[0];
 
   const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
