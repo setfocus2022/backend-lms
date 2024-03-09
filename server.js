@@ -750,8 +750,8 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-app.get('/api/cursos-comprados/:userId', async (req, res) => {
-  const { userId } = req.params;
+app.get('/api/cursos-comprados/', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;  // Usando userId do token
 
   const query = `
     SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
@@ -770,6 +770,7 @@ app.get('/api/cursos-comprados/:userId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
   }
 });
+
 
 
 app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
