@@ -570,6 +570,19 @@ function authenticateToken(req, res, next) {
   })
 }
 
+function authorizeRole(roleArray) {
+  return (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.sendStatus(401);
+
+    jwt.verify(token, jwtSecret, (err, user) => {
+      if (err || !roleArray.includes(user.role)) return res.sendStatus(403);
+      req.user = user;
+      next();
+    });
+  };
+}
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
