@@ -75,6 +75,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
+  // Primeiro, recupera os dados do usuário
   const userQuery = 'SELECT * FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
 
@@ -84,9 +85,24 @@ app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
 
   const userData = userResult.rows[0];
 
+  // Verifica se o usuário completou o curso
+  const progressoQuery = 'SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'';
+  const progressoResult = await pool.query(progressoQuery, [userData.id, cursoId]);
+
+  if (progressoResult.rows.length === 0) {
+    return res.status(403).send('Certificado não disponível. Curso não concluído.');
+  }
+
+  // Recupera os dados do curso
   const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
   const cursoResult = await pool.query(cursoQuery, [cursoId]);
+
+  if (cursoResult.rows.length === 0) {
+    return res.status(404).send('Curso não encontrado');
+  }
+
   const cursoData = cursoResult.rows[0];
+  
   // Cria um documento PDF em formato paisagem
   const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
 
