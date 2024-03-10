@@ -70,12 +70,12 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
-app.get('/api/cursos/iniciados', async (req, res) => {
+app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
       SELECT c.nome, 
-             COUNT(CASE WHEN pc.status = 'iniciado' THEN 1 END) as iniciados,
-             COUNT(CASE WHEN pc.status = 'concluido' THEN 1 END) as concluidos
+             COUNT(case when pc.status = 'iniciado' then 1 end) as iniciados,
+             COUNT(case when pc.status = 'concluido' then 1 end) as concluidos
       FROM progresso_cursos pc
       JOIN cursos c ON pc.curso_id = c.id
       GROUP BY c.nome
