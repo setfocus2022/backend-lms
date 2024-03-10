@@ -73,19 +73,32 @@ app.post('/api/cursos/concluir', async (req, res) => {
 app.get('/api/vendas/aprovadas', async (req, res) => {
   try {
     const query = `
-      SELECT c.nome, COUNT(*) AS quantidade 
+      SELECT cc.curso_id, c.nome, cc.periodo, COUNT(*) AS quantidade,
+      SUM(
+        CASE 
+          WHEN cc.periodo = '15d' THEN valor_15d
+          WHEN cc.periodo = '30d' THEN valor_30d
+          WHEN cc.periodo = '6m' THEN valor_6m
+          ELSE 0
+        END
+      ) AS valor_total
       FROM compras_cursos cc
       JOIN cursos c ON cc.curso_id = c.id
-      WHERE cc.status = 'aprovado' 
-      GROUP BY c.nome`;
+      WHERE cc.status = 'aprovado'
+      GROUP BY cc.curso_id, c.nome, cc.periodo`;
     const { rows } = await pool.query(query);
-    res.json(rows);
+    const totalVendas = rows.reduce((acc, row) => acc + Number(row.valor_total), 0);
+    const periodoDistribuicao = {
+      '15d': rows.filter(row => row.periodo === '15d').length,
+      '30d': rows.filter(row => row.periodo === '30d').length,
+      '6m': rows.filter(row => row.periodo === '6m').length,
+    };
+    res.json({ vendas: rows, totalVendas, periodoDistribuicao });
   } catch (error) {
     console.error('Erro ao buscar vendas aprovadas:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
