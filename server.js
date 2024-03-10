@@ -42,8 +42,8 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
       console.error('é bolsonaro ou não é?', error);
     }
   } catch (error) {
-    console.error('Erro ao buscar o status do curso:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
+  
+    console.error('é bolsonaro ou não é?', error);
   }
 });
 
