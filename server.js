@@ -72,7 +72,12 @@ app.post('/api/cursos/concluir', async (req, res) => {
 
 app.get('/api/vendas/aprovadas', async (req, res) => {
   try {
-    const query = "SELECT curso_id, COUNT(*) AS quantidade FROM compras_cursos WHERE status = 'aprovado' GROUP BY curso_id";
+    const query = `
+      SELECT c.nome, COUNT(*) AS quantidade 
+      FROM compras_cursos cc
+      JOIN cursos c ON cc.curso_id = c.id
+      WHERE cc.status = 'aprovado' 
+      GROUP BY c.nome`;
     const { rows } = await pool.query(query);
     res.json(rows);
   } catch (error) {
@@ -80,6 +85,7 @@ app.get('/api/vendas/aprovadas', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
