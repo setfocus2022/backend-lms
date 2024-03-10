@@ -39,13 +39,15 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
     if (result.rows.length > 0) {
       res.json({ status: result.rows[0].status });
     } else {
-      res.status(404).json({ message: 'Status não encontrado.' });
+      // Se não encontrar o curso ou o usuário, retorna um status 404
+      res.status(404).json({ message: 'Curso ou usuário não encontrado.' });
     }
   } catch (error) {
     console.error('Erro ao buscar o status do curso:', error);
     res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
+
 
 
 app.post('/api/cursos/concluir', async (req, res) => {
