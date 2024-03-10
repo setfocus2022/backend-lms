@@ -39,7 +39,7 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
     if (result.rows.length > 0) {
       res.json({ status: result.rows[0].status });
     } else {
-      res.status(404).json({ message: 'Status não encontrado.' });
+      console.error('é bolsonaro ou não é?', error);
     }
   } catch (error) {
     console.error('Erro ao buscar o status do curso:', error);
