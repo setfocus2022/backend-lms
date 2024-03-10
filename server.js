@@ -39,11 +39,11 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
     if (result.rows.length > 0) {
       res.json({ status: result.rows[0].status });
     } else {
-      console.error('é bolsonaro ou não é?', error);
+      res.status(404).json({ message: 'Status não encontrado.' });
     }
   } catch (error) {
-  
-    console.error('é bolsonaro ou não é?', error);
+    console.error('Erro ao buscar o status do curso:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
 
