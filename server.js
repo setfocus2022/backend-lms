@@ -73,12 +73,11 @@ app.post('/api/cursos/concluir', async (req, res) => {
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
-      SELECT c.nome, 
-             COUNT(case when pc.status = 'iniciado' then 1 end) as iniciados,
-             COUNT(case when pc.status = 'concluido' then 1 end) as concluidos
+      SELECT c.nome, pc.status, COUNT(*) as quantidade
       FROM progresso_cursos pc
       JOIN cursos c ON pc.curso_id = c.id
-      GROUP BY c.nome
+      WHERE pc.status IN ('iniciado', 'concluido')
+      GROUP BY c.nome, pc.status
     `;
     const { rows } = await pool.query(query);
     res.json(rows);
