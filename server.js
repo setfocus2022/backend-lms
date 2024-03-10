@@ -70,35 +70,39 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
-app.get('/api/vendas/aprovadas', async (req, res) => {
+app.get('/api/financeiro/lucro-total', async (req, res) => {
   try {
     const query = `
-      SELECT cc.curso_id, c.nome, cc.periodo, COUNT(*) AS quantidade,
-      SUM(
-        CASE 
-          WHEN cc.periodo = '15d' THEN valor_15d
-          WHEN cc.periodo = '30d' THEN valor_30d
-          WHEN cc.periodo = '6m' THEN valor_6m
-          ELSE 0
-        END
-      ) AS valor_total
+      SELECT cc.periodo, c.valor_15d, c.valor_30d, c.valor_6m
       FROM compras_cursos cc
       JOIN cursos c ON cc.curso_id = c.id
       WHERE cc.status = 'aprovado'
-      GROUP BY cc.curso_id, c.nome, cc.periodo`;
+    `;
+
     const { rows } = await pool.query(query);
-    const totalVendas = rows.reduce((acc, row) => acc + Number(row.valor_total), 0);
-    const periodoDistribuicao = {
-      '15d': rows.filter(row => row.periodo === '15d').length,
-      '30d': rows.filter(row => row.periodo === '30d').length,
-      '6m': rows.filter(row => row.periodo === '6m').length,
-    };
-    res.json({ vendas: rows, totalVendas, periodoDistribuicao });
+    let totalLucro = 0;
+
+    rows.forEach(row => {
+      switch (row.periodo) {
+        case '15d':
+          totalLucro += parseFloat(row.valor_15d);
+          break;
+        case '30d':
+          totalLucro += parseFloat(row.valor_30d);
+          break;
+        case '6m':
+          totalLucro += parseFloat(row.valor_6m);
+          break;
+      }
+    });
+
+    res.json({ totalLucro });
   } catch (error) {
-    console.error('Erro ao buscar vendas aprovadas:', error);
+    console.error('Erro ao calcular o lucro total:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
