@@ -70,6 +70,25 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+app.get('/api/cursos/iniciados', async (req, res) => {
+  try {
+    const query = `
+      SELECT c.nome, 
+             COUNT(CASE WHEN pc.status = 'iniciado' THEN 1 END) as iniciados,
+             COUNT(CASE WHEN pc.status = 'concluido' THEN 1 END) as concluidos
+      FROM progresso_cursos pc
+      JOIN cursos c ON pc.curso_id = c.id
+      GROUP BY c.nome
+    `;
+    const { rows } = await pool.query(query);
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar cursos iniciados e concluídos:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+
 app.get('/api/vendas/estatisticas', async (req, res) => {
   try {
     const query = `
