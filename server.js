@@ -72,15 +72,14 @@ app.post('/api/cursos/concluir', async (req, res) => {
 
 app.get('/api/vendas/aprovadas', async (req, res) => {
   try {
-    const query = 'SELECT curso_id, COUNT(*) AS total_vendas FROM compras_cursos WHERE status = $1 GROUP BY curso_id';
-    const result = await pool.query(query, ['aprovado']);
-    res.json(result.rows);
+    const query = "SELECT curso_id, COUNT(*) AS quantidade FROM compras_cursos WHERE status = 'aprovado' GROUP BY curso_id";
+    const { rows } = await pool.query(query);
+    res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar vendas aprovadas:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
