@@ -103,7 +103,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   // Ajusta as coordenadas para inserir o nome do usuário e do curso
   // Observação: As coordenadas Y são medidas de baixo para cima no pdf-lib
   firstPage.drawText(userData.nome, {
-    x:   405.5 , // Converta mm para pontos se necessário
+    x:   705.5 , // Converta mm para pontos se necessário
     y: 1200.0 , // Converta mm para pontos e ajuste a partir da base
     size: fontSize,
     font: font,
@@ -111,7 +111,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   });
 
   firstPage.drawText(cursoData.nome, {
-    x:  405.5 , // Converta mm para pontos se necessário
+    x:  705.5 , // Converta mm para pontos se necessário
     y:  950.0 , // Ajuste Y conforme necessário
     size: fontSize,
     font: font,
