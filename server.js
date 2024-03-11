@@ -98,21 +98,21 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const { width, height } = firstPage.getSize();
-  const fontSize = 24;
+  const fontSize = 55;
 
   // Ajusta as coordenadas para inserir o nome do usuário e do curso
   // Observação: As coordenadas Y são medidas de baixo para cima no pdf-lib
   firstPage.drawText(userData.nome, {
-    x:   1005.5 , // Converta mm para pontos se necessário
-    y: height - 555.0 , // Converta mm para pontos e ajuste a partir da base
+    x:   805.5 , // Converta mm para pontos se necessário
+    y: height - 680.0 , // Converta mm para pontos e ajuste a partir da base
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
   });
 
   firstPage.drawText(cursoData.nome, {
-    x:  1005.5 , // Converta mm para pontos se necessário
-    y: height - 765.0 , // Ajuste Y conforme necessário
+    x:  805.5 , // Converta mm para pontos se necessário
+    y: height - 250.0 , // Ajuste Y conforme necessário
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
