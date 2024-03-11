@@ -100,7 +100,17 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
     return res.status(404).send('Progresso do curso não encontrado');
   }
   const progressoData = progressoResult.rows[0];
-  const dataConclusao = new Date(progressoData.time_certificado).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  // Formata a data e hora no formato 'dd/mm/aaaa 00:00'
+  const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
 
   // Carrega o modelo de certificado PDF
   const certificadoPath = path.join(__dirname, 'certificado.pdf');
