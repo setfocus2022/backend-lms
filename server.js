@@ -52,59 +52,82 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
 
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
-  console.log("Recebido userId:", userId, "cursoId:", cursoId);
 
   try {
-    // Definindo a consulta SQL para atualizar o status em 'progresso_cursos'
-    const query = 'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3';
-    const result = await pool.query(query, ['concluido', userId, cursoId]);
+    // Define a data e hora atuais de São Paulo (UTC-3)
+    const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
+
+    // Atualiza o status e a data de conclusão do curso
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
+    const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
     if (result.rowCount > 0) {
-      res.json({ success: true, message: 'Status do curso atualizado para concluído.' });
+      res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao atualizar status do curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar status do curso.' });
+    console.error('Erro ao atualizar status e data de conclusão do curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
 
 
+
+Claro! Abaixo está o código completo da API /api/certificado-concluido/:username/:cursoId, incluindo a lógica para buscar o nome e sobrenome do usuário, os detalhes do curso, a data de conclusão do curso e como inserir essas informações no certificado PDF:
+
+javascript
+Copy code
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const { Pool } = require('pg');
+
+const app = express();
+const pool = new Pool({ /* sua configuração de banco de dados */ });
+
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  // Recupera o nome e o sobrenome do usuário
+  // Busca o nome e sobrenome do usuário
   const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
   if (userResult.rows.length === 0) {
     return res.status(404).send('Usuário não encontrado');
   }
   const userData = userResult.rows[0];
-
-  // Concatena nome e sobrenome para formar o nome completo
   const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
-  const cursoResult = await pool.query('SELECT * FROM cursos WHERE id = $1', [cursoId]);
+  // Busca os detalhes do curso
+  const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
+  const cursoResult = await pool.query(cursoQuery, [cursoId]);
   if (cursoResult.rows.length === 0) {
     return res.status(404).send('Curso não encontrado');
   }
   const cursoData = cursoResult.rows[0];
+
+  // Busca a data de conclusão do curso
+  const progressoQuery = 'SELECT time_certificado FROM progresso_cursos WHERE user_id = (SELECT id FROM users WHERE username = $1) AND curso_id = $2';
+  const progressoResult = await pool.query(progressoQuery, [username, cursoId]);
+  if (progressoResult.rows.length === 0) {
+    return res.status(404).send('Progresso do curso não encontrado');
+  }
+  const progressoData = progressoResult.rows[0];
+  const dataConclusao = new Date(progressoData.time_certificado).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
   // Carrega o modelo de certificado PDF
   const certificadoPath = path.join(__dirname, 'certificado.pdf');
   const existingPdfBytes = fs.readFileSync(certificadoPath);
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
-  // Escolhe a fonte para o texto
+  // Configura a fonte
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-  // Adiciona o nome completo do usuário e o nome do curso
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
-  const { width, height } = firstPage.getSize();
-  const fontSize = 60;
+  const fontSize = 24;
 
+  // Adiciona o nome completo do usuário
   firstPage.drawText(nomeCompleto, {
     x: 705.5,
     y: 1200.0,
@@ -113,9 +136,19 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
     color: rgb(0, 0, 0),
   });
 
+  // Adiciona o nome do curso
   firstPage.drawText(cursoData.nome, {
     x: 705.5,
     y: 950.0,
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
+  });
+
+  // Adiciona a data de conclusão
+  firstPage.drawText(dataConclusao, {
+    x: 705.5,
+    y: 800.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
