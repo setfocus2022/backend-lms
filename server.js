@@ -74,11 +74,16 @@ app.post('/api/cursos/concluir', async (req, res) => {
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+  // Recupera o nome e o sobrenome do usuário
+  const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
+  const userResult = await pool.query(userQuery, [username]);
   if (userResult.rows.length === 0) {
     return res.status(404).send('Usuário não encontrado');
   }
   const userData = userResult.rows[0];
+
+  // Concatena nome e sobrenome para formar o nome completo
+  const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
   const cursoResult = await pool.query('SELECT * FROM cursos WHERE id = $1', [cursoId]);
   if (cursoResult.rows.length === 0) {
@@ -94,25 +99,23 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   // Escolhe a fonte para o texto
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  // Adiciona o nome do usuário e o nome do curso
+  // Adiciona o nome completo do usuário e o nome do curso
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const { width, height } = firstPage.getSize();
   const fontSize = 60;
 
-  // Ajusta as coordenadas para inserir o nome do usuário e do curso
-  // Observação: As coordenadas Y são medidas de baixo para cima no pdf-lib
-  firstPage.drawText(userData.nome, {
-    x:   705.5 , // Converta mm para pontos se necessário
-    y: 1200.0 , // Converta mm para pontos e ajuste a partir da base
+  firstPage.drawText(nomeCompleto, {
+    x: 705.5,
+    y: 1200.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
   });
 
   firstPage.drawText(cursoData.nome, {
-    x:  705.5 , // Converta mm para pontos se necessário
-    y:  950.0 , // Ajuste Y conforme necessário
+    x: 705.5,
+    y: 950.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
@@ -128,6 +131,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
     'Content-disposition': 'attachment;filename=certificado.pdf',
   }).end(pdfBytes);
 });
+
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
