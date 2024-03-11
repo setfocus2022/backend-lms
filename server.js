@@ -230,64 +230,84 @@ app.get('/api/financeiro/lucro-total', async (req, res) => {
 });
 
 
+
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  // Primeiro, recupera os dados do usuário
+  // Recupera os dados do usuário
   const userQuery = 'SELECT * FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
-
   if (userResult.rows.length === 0) {
     return res.status(404).send('Usuário não encontrado');
   }
-
   const userData = userResult.rows[0];
+  const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
-  // Verifica se o usuário completou o curso
+  // Verifica se o usuário completou o curso e recupera a data de conclusão
   const progressoQuery = 'SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'';
   const progressoResult = await pool.query(progressoQuery, [userData.id, cursoId]);
-
   if (progressoResult.rows.length === 0) {
     return res.status(403).send('Certificado não disponível. Curso não concluído.');
   }
+  const progressoData = progressoResult.rows[0];
+  const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
 
   // Recupera os dados do curso
   const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
   const cursoResult = await pool.query(cursoQuery, [cursoId]);
-
   if (cursoResult.rows.length === 0) {
     return res.status(404).send('Curso não encontrado');
   }
-
   const cursoData = cursoResult.rows[0];
 
-  // Cria um documento PDF em formato paisagem
-  const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
+  // Cria o documento PDF
+  const certificadoPath = path.join(__dirname, 'certificado.pdf');
+  const existingPdfBytes = fs.readFileSync(certificadoPath);
+  const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
-  // Cor de fundo
-  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#15283E');
+  // Configura a fonte
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const firstPage = pdfDoc.getPages()[0];
+  const fontSize = 24;
 
-  // Adicionar o logo com tamanho ajustado
-  const logoPath = path.join(__dirname, 'images', 'logo2.png');
-  // Ajuste as dimensões e posição conforme necessário
-  doc.image(logoPath, doc.page.width / 2 - 150, 60, { width: 300 });
-
-  // Ajustar a posição do texto
-  doc.fillColor('#FFF').fontSize(25).text('Certificado de Conclusão', { align: 'center', baseline: 'middle' }, 300);
-  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' }, 350);
-  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' }, 370);
-  doc.end();
-
-  let buffers = [];
-  doc.on('data', buffers.push.bind(buffers));
-  doc.on('end', () => {
-    let pdfData = Buffer.concat(buffers);
-    res.writeHead(200, {
-      'Content-Length': Buffer.byteLength(pdfData),
-      'Content-Type': 'application/pdf',
-      'Content-disposition': 'attachment;filename=certificado.pdf',
-    }).end(pdfData);
+  // Adiciona o nome completo do usuário, nome do curso e data de conclusão
+  firstPage.drawText(nomeCompleto, {
+    x: 705.5,
+    y: 1200.0,
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
   });
+  firstPage.drawText(cursoData.nome, {
+    x: 705.5,
+    y: 950.0,
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
+  });
+  firstPage.drawText(dataConclusao, {
+    x: 705.5,
+    y: 800.0,
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
+  });
+
+  // Finaliza o documento e envia a resposta
+  const pdfBytes = await pdfDoc.save();
+  res.writeHead(200, {
+    'Content-Length': Buffer.byteLength(pdfBytes),
+    'Content-Type': 'application/pdf',
+    'Content-disposition': 'attachment;filename=certificado.pdf',
+  }).end(pdfBytes);
 });
 
 app.post("/api/checkout", async (req, res) => {
