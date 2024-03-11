@@ -295,7 +295,7 @@ app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   });
   firstPage.drawText(dataConclusao, {
     x: 705.5,
-    y: 800.0,
+    y: 750.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
