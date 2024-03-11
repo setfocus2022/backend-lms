@@ -73,20 +73,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
 });
 
 
-
-Claro! Abaixo está o código completo da API /api/certificado-concluido/:username/:cursoId, incluindo a lógica para buscar o nome e sobrenome do usuário, os detalhes do curso, a data de conclusão do curso e como inserir essas informações no certificado PDF:
-
-javascript
-Copy code
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
-const fs = require('fs');
-const path = require('path');
-const express = require('express');
-const { Pool } = require('pg');
-
-const app = express();
-const pool = new Pool({ /* sua configuração de banco de dados */ });
-
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
