@@ -281,14 +281,14 @@ app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   // Adiciona o nome completo do usuário, nome do curso e data de conclusão
   firstPage.drawText(nomeCompleto, {
     x: 705.5,
-    y: 1150.0,
+    y: 1175.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
   });
   firstPage.drawText(cursoData.nome, {
     x: 705.5,
-    y: 900.0,
+    y: 925.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
