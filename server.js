@@ -122,28 +122,23 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const firstPage = pages[0];
   const fontSize = 60;
 
-  // Adiciona o nome completo do usuário
   firstPage.drawText(nomeCompleto, {
     x: 705.5,
-    y: 1200.0,
+    y: 1175.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
   });
-
-  // Adiciona o nome do curso
   firstPage.drawText(cursoData.nome, {
     x: 705.5,
-    y: 950.0,
+    y: 925.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
   });
-
-  // Adiciona a data de conclusão
   firstPage.drawText(dataConclusao, {
     x: 705.5,
-    y: 800.0,
+    y: 750.0,
     size: fontSize,
     font: font,
     color: rgb(0, 0, 0),
