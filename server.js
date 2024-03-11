@@ -276,7 +276,7 @@ app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
   // Configura a fonte
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const firstPage = pdfDoc.getPages()[0];
-  const fontSize = 24;
+  const fontSize = 60;
 
   // Adiciona o nome completo do usuário, nome do curso e data de conclusão
   firstPage.drawText(nomeCompleto, {
