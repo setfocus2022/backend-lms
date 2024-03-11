@@ -70,6 +70,50 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
+  const { username, cursoId } = req.params;
+
+  const userQuery = 'SELECT * FROM users WHERE username = $1';
+  const userResult = await pool.query(userQuery, [username]);
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).send('Usuário não encontrado');
+  }
+
+  const userData = userResult.rows[0];
+
+  const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
+  const cursoResult = await pool.query(cursoQuery, [cursoId]);
+  const cursoData = cursoResult.rows[0];
+  // Cria um documento PDF em formato paisagem
+  const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
+
+  // Cor de fundo
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#15283E');
+
+  // Adicionar o logo com tamanho ajustado
+  const logoPath = path.join(__dirname, 'images', 'logo2.png');
+  // Ajuste as dimensões e posição conforme necessário
+  doc.image(logoPath, doc.page.width / 2 - 150, 60, { width: 300 });
+
+  // Ajustar a posição do texto
+  doc.fillColor('#FFF').fontSize(25).text('Certificado de Conclusão', { align: 'center', baseline: 'middle' }, 300);
+  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' }, 350);
+  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' }, 370);
+  doc.end();
+
+  let buffers = [];
+  doc.on('data', buffers.push.bind(buffers));
+  doc.on('end', () => {
+    let pdfData = Buffer.concat(buffers);
+    res.writeHead(200, {
+      'Content-Length': Buffer.byteLength(pdfData),
+      'Content-Type': 'application/pdf',
+      'Content-disposition': 'attachment;filename=certificado.pdf',
+    }).end(pdfData);
+  });
+})
+
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
