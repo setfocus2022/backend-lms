@@ -98,7 +98,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const { width, height } = firstPage.getSize();
-  const fontSize = 150;
+  const fontSize = 80;
 
   // Ajusta as coordenadas para inserir o nome do usuário e do curso
   // Observação: As coordenadas Y são medidas de baixo para cima no pdf-lib
