@@ -102,7 +102,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const progressoData = progressoResult.rows[0];
   // Formata a data e hora no formato 'dd/mm/aaaa 00:00'
   const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
+    timeZone: 'UTC', // Use 'UTC' aqui se o horário já está correto no banco de dados
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -110,8 +110,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
     minute: '2-digit',
     hour12: false
   });
-
-
+  
   // Carrega o modelo de certificado PDF
   const certificadoPath = path.join(__dirname, 'certificado.pdf');
   const existingPdfBytes = fs.readFileSync(certificadoPath);
