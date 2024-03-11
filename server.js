@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
-const PDFDocument = require('pdfkit');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 const fs = require('fs');
 const app = express();
 const path = require('path');
@@ -70,50 +70,64 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  const userQuery = 'SELECT * FROM users WHERE username = $1';
-  const userResult = await pool.query(userQuery, [username]);
-
+  const userResult = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
   if (userResult.rows.length === 0) {
     return res.status(404).send('Usuário não encontrado');
   }
-
   const userData = userResult.rows[0];
 
-  const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
-  const cursoResult = await pool.query(cursoQuery, [cursoId]);
+  const cursoResult = await pool.query('SELECT * FROM cursos WHERE id = $1', [cursoId]);
+  if (cursoResult.rows.length === 0) {
+    return res.status(404).send('Curso não encontrado');
+  }
   const cursoData = cursoResult.rows[0];
-  // Cria um documento PDF em formato paisagem
-  const doc = new PDFDocument({ size: 'A4', layout: 'landscape' });
 
-  // Cor de fundo
-  doc.rect(0, 0, doc.page.width, doc.page.height).fill('#15283E');
+  // Carrega o modelo de certificado PDF
+  const certificadoPath = path.join(__dirname, 'certificado.pdf');
+  const existingPdfBytes = fs.readFileSync(certificadoPath);
+  const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
-  // Adicionar o logo com tamanho ajustado
-  const logoPath = path.join(__dirname, 'images', 'logo2.png');
-  // Ajuste as dimensões e posição conforme necessário
-  doc.image(logoPath, doc.page.width / 2 - 150, 60, { width: 300 });
+  // Escolhe a fonte para o texto
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
-  // Ajustar a posição do texto
-  doc.fillColor('#FFF').fontSize(25).text('Certificado de Conclusão', { align: 'center', baseline: 'middle' }, 300);
-  doc.fontSize(16).text(`Este certificado é concedido a ${userData.nome}`, { align: 'center' }, 350);
-  doc.text(`Por completar o curso ${cursoData.nome}`, { align: 'center' }, 370);
-  doc.end();
+  // Adiciona o nome do usuário e o nome do curso
+  const pages = pdfDoc.getPages();
+  const firstPage = pages[0];
+  const { width, height } = firstPage.getSize();
+  const fontSize = 24;
 
-  let buffers = [];
-  doc.on('data', buffers.push.bind(buffers));
-  doc.on('end', () => {
-    let pdfData = Buffer.concat(buffers);
-    res.writeHead(200, {
-      'Content-Length': Buffer.byteLength(pdfData),
-      'Content-Type': 'application/pdf',
-      'Content-disposition': 'attachment;filename=certificado.pdf',
-    }).end(pdfData);
+  // Ajusta as coordenadas para inserir o nome do usuário e do curso
+  // Observação: As coordenadas Y são medidas de baixo para cima no pdf-lib
+  firstPage.drawText(userData.nome, {
+    x: 783.91, // Converta mm para pontos se necessário
+    y: height - 1.45, // Converta mm para pontos e ajuste a partir da base
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
   });
-})
 
+  firstPage.drawText(cursoData.nome, {
+    x: 778.13, // Converta mm para pontos se necessário
+    y: height - 1.45 - 30, // Ajuste Y conforme necessário
+    size: fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
+  });
+
+  // Serializa o PDF modificado
+  const pdfBytes = await pdfDoc.save();
+
+  // Envia o PDF como resposta
+  res.writeHead(200, {
+    'Content-Length': Buffer.byteLength(pdfBytes),
+    'Content-Type': 'application/pdf',
+    'Content-disposition': 'attachment;filename=certificado.pdf',
+  }).end(pdfBytes);
+});
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
