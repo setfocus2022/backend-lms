@@ -111,7 +111,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
-  const fontSize = 24;
+  const fontSize = 60;
 
   // Adiciona o nome completo do usuário
   firstPage.drawText(nomeCompleto, {
