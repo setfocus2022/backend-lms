@@ -118,6 +118,24 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+app.post('/api/cursos/remover-curso', async (req, res) => {
+  const { userId, cursoId } = req.body;
+
+  try {
+    await pool.query('BEGIN');
+
+    // Remover o curso da tabela compras_cursos
+    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    await pool.query('COMMIT');
+
+    res.json({ success: true, message: 'Curso removido com sucesso.' });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Erro ao remover curso:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  }
+});
 
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
