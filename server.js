@@ -32,34 +32,51 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 
-// Rota para obter o número de acessos pós-conclusão
-app.get('/api/cursos/:cursoId/acessos-pos-conclusao/:userId', async (req, res) => {
-  const { cursoId, userId } = req.params;
+// Rota para incrementar o número de acessos pós-conclusão
+app.put('/api/cursos/acessos-pos-conclusao', async (req, res) => {
+  const { userId, cursoId } = req.body;
+
   try {
-    const result = await pool.query('SELECT acessos_pos_conclusao FROM progresso_cursos WHERE curso_id = $1 AND user_id = $2', [cursoId, userId]);
-    if (result.rows.length > 0) {
-      res.json({ acessosPosConclusao: result.rows[0].acessos_pos_conclusao });
+    const client = await pool.connect();
+
+    // Incrementar o valor de acessos_pos_conclusao em 1
+    await client.query(
+      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
+      [userId, cursoId]
+    );
+
+    client.release();
+    res.json({ success: true, message: 'Acessos pós-conclusão atualizados com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao atualizar acessos pós-conclusão:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  }
+});
+
+// Rota para obter o número de acessos pós-conclusão
+app.get('/api/cursos/acessos-pos-conclusao/:userId/:cursoId', async (req, res) => {
+  const { userId, cursoId } = req.params;
+
+  try {
+    const client = await pool.connect();
+
+    const { rows } = await client.query(
+      'SELECT acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
+      [userId, cursoId]
+    );
+
+    client.release();
+
+    if (rows.length > 0) {
+      res.json({ acessos_pos_conclusao: rows[0].acessos_pos_conclusao });
     } else {
-      res.status(404).json({ message: 'Progresso não encontrado.' });
+      res.status(404).json({ success: false, message: 'Registro de progresso não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao buscar acessos pós-conclusão:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
+    console.error('Erro ao obter acessos pós-conclusão:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
-
-// Rota para incrementar o número de acessos pós-conclusão
-app.post('/api/cursos/:cursoId/incrementar-acesso/:userId', async (req, res) => {
-  const { cursoId, userId } = req.params;
-  try {
-    await pool.query('UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE curso_id = $1 AND user_id = $2', [cursoId, userId]);
-    res.json({ message: 'Acesso incrementado com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao incrementar acessos pós-conclusão:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
-  }
-});
-
 
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
