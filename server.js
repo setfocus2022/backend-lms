@@ -614,14 +614,19 @@ app.get('/api/verificar-acesso/:userId/:cursoId', async (req, res) => {
   try {
     const progressoQuery = 'SELECT status, acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
     const progressoResult = await pool.query(progressoQuery, [userId, cursoId]);
-    const progresso = progressoResult.rows[0];
 
-    if (progresso.status === 'concluido' && progresso.acessos_pos_conclusao >= 3) {
-      await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-      return res.json({ temAcesso: false, motivo: 'acesso_excedido' });
+    if (progressoResult.rowCount > 0) {
+      const progresso = progressoResult.rows[0];
+      if (progresso.status === 'concluido' && progresso.acessos_pos_conclusao >= 3) {
+        // Excluir o curso de compras_cursos
+        await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+        return res.json({ temAcesso: false, motivo: 'acesso_excedido' });
+      } else {
+        return res.json({ temAcesso: true, acessos_pos_conclusao: progresso.acessos_pos_conclusao });
+      }
+    } else {
+      res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
-
-    res.json({ temAcesso: true });
   } catch (error) {
     console.error('Erro ao verificar acesso:', error);
     res.status(500).json({ success: false, message: 'Erro ao verificar acesso' });
