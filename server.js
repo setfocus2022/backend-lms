@@ -104,18 +104,40 @@ app.post('/api/cursos/concluir', async (req, res) => {
     // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
 
-    // Atualiza o status e a data de conclusão do curso
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
+    // Atualiza o status, a data de conclusão e reseta acessos_pos_conclusao
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2, acessos_pos_conclusao = 0 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
     if (result.rowCount > 0) {
-      res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
+      res.json({ success: true, message: 'Status do curso, data de conclusão e acessos pós-conclusão atualizados.' });
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao atualizar status e data de conclusão do curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
+    console.error('Erro ao atualizar status, data de conclusão e acessos pós-conclusão do curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status, data de conclusão e acessos pós-conclusão do curso.' });
+  }
+});
+
+app.post('/api/cursos/remover-curso', async (req, res) => {
+  const { userId, cursoId } = req.body;
+
+  try {
+    await pool.query('BEGIN');
+
+    // Remover o curso da tabela progresso_cursos
+    await pool.query('DELETE FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    // Remover o curso da tabela compras_cursos
+    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    await pool.query('COMMIT');
+
+    res.json({ success: true, message: 'Curso removido com sucesso.' });
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Erro ao remover curso:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
 
