@@ -31,53 +31,6 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-
-// Rota para incrementar o número de acessos pós-conclusão
-app.put('/api/cursos/acessos-pos-conclusao', async (req, res) => {
-  const { userId, cursoId } = req.body;
-
-  try {
-    const client = await pool.connect();
-  
-    // Incrementar o valor de acessos_pos_conclusao em 1 e decrementar revisoes_restantes em 1 se o status for 'concluido'
-    await client.query(
-      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1, revisoes_restantes = CASE WHEN status = \'concluido\' THEN revisoes_restantes - 1 ELSE revisoes_restantes END WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
-      [userId, cursoId]
-    );
-  
-    client.release();
-    res.json({ success: true, message: 'Acessos pós-conclusão atualizados com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao atualizar acessos pós-conclusão:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
-  }
-});
-
-// Rota para obter o número de acessos pós-conclusão
-app.get('/api/cursos/acessos-pos-conclusao/:userId/:cursoId', async (req, res) => {
-  const { userId, cursoId } = req.params;
-
-  try {
-    const client = await pool.connect();
-
-    const { rows } = await client.query(
-      'SELECT acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
-      [userId, cursoId]
-    );
-
-    client.release();
-
-    if (rows.length > 0) {
-      res.json({ acessos_pos_conclusao: rows[0].acessos_pos_conclusao });
-    } else {
-      res.status(404).json({ success: false, message: 'Registro de progresso não encontrado.' });
-    }
-  } catch (error) {
-    console.error('Erro ao obter acessos pós-conclusão:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
-  }
-});
-
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
   try {
@@ -104,45 +57,20 @@ app.post('/api/cursos/concluir', async (req, res) => {
     // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
 
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2, acessos_pos_conclusao = 0, revisoes_restantes = 3 WHERE user_id = $3 AND curso_id = $4';
+    // Atualiza o status e a data de conclusão do curso
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
     if (result.rowCount > 0) {
-      res.json({ success: true, message: 'Status do curso, data de conclusão e acessos pós-conclusão atualizados.' });
+      res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao atualizar status, data de conclusão e acessos pós-conclusão do curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar status, data de conclusão e acessos pós-conclusão do curso.' });
+    console.error('Erro ao atualizar status e data de conclusão do curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
-
-app.post('/api/cursos/remover-curso', async (req, res) => {
-  const { userId, cursoId } = req.body;
-
-  try {
-    const progress = await pool.query('SELECT revisoes_restantes FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    if (progress.rows.length > 0 && progress.rows[0].revisoes_restantes > 0) {
-      return res.status(400).json({ success: false, message: 'Ainda há revisões restantes.' });
-    }
-
-    await pool.query('BEGIN');
-
-    // Remover o curso da tabela compras_cursos
-    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    await pool.query('COMMIT');
-
-    res.json({ success: true, message: 'Curso removido com sucesso.' });
-  } catch (error) {
-    await pool.query('ROLLBACK');
-    console.error('Erro ao remover curso:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
-  }
-});
-
 
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
@@ -1201,4 +1129,4 @@ app.use((req, res, next) => {
 });
 const port = process.env.PORT || 5000;
 
-app.listen(port, () => console.log(`Server is running on port ${port}`));
+app.listen(port, () => console.log(`Server is running on port ${port}`))
