@@ -38,13 +38,13 @@ app.put('/api/cursos/acessos-pos-conclusao', async (req, res) => {
 
   try {
     const client = await pool.connect();
-
-    // Incrementar o valor de acessos_pos_conclusao em 1
+  
+    // Incrementar o valor de acessos_pos_conclusao em 1 e decrementar revisoes_restantes em 1 se o status for 'concluido'
     await client.query(
-      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
+      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1, revisoes_restantes = CASE WHEN status = \'concluido\' THEN revisoes_restantes - 1 ELSE revisoes_restantes END WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
       [userId, cursoId]
     );
-
+  
     client.release();
     res.json({ success: true, message: 'Acessos pós-conclusão atualizados com sucesso.' });
   } catch (error) {
@@ -104,8 +104,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
     // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
 
-    // Atualiza o status, a data de conclusão e reseta acessos_pos_conclusao
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2, acessos_pos_conclusao = 0 WHERE user_id = $3 AND curso_id = $4';
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2, acessos_pos_conclusao = 0, revisoes_restantes = 3 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
     if (result.rowCount > 0) {
@@ -119,27 +118,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
-app.post('/api/cursos/remover-curso', async (req, res) => {
-  const { userId, cursoId } = req.body;
-
-  try {
-    await pool.query('BEGIN');
-
-    // Remover o curso da tabela progresso_cursos
-    await pool.query('DELETE FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    // Remover o curso da tabela compras_cursos
-    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    await pool.query('COMMIT');
-
-    res.json({ success: true, message: 'Curso removido com sucesso.' });
-  } catch (error) {
-    await pool.query('ROLLBACK');
-    console.error('Erro ao remover curso:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
-  }
-});
 
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
