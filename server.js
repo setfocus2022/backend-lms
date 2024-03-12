@@ -33,31 +33,31 @@ mercadopago.configure({
 });
 
 
-app.get('/api/aulas/acesso/:userId/:cursoId/:aulaId', async (req, res) => {
-  const { userId, cursoId, aulaId } = req.params;
-
+// Rota para obter o número de acessos pós-conclusão
+app.get('/api/cursos/:cursoId/acessos-pos-conclusao/:userId', async (req, res) => {
+  const { cursoId, userId } = req.params;
   try {
-    const progresso = await pool.query('SELECT status, acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    if (progresso.rowCount > 0) {
-      const { status, acessos_pos_conclusao } = progresso.rows[0];
-
-      if (status === 'concluido' && acessos_pos_conclusao >= 3) {
-        return res.status(403).json({ message: 'Você já excedeu o número de acessos permitidos para esta aula após a conclusão do curso.' });
-      }
-
-      if (status === 'concluido') {
-        await pool.query('UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-      }
-
-      // Prossiga com a lógica para fornecer acesso à aula
-      res.json({ message: 'Acesso concedido.' });
+    const result = await pool.query('SELECT acessos_pos_conclusao FROM progresso_cursos WHERE curso_id = $1 AND user_id = $2', [cursoId, userId]);
+    if (result.rows.length > 0) {
+      res.json({ acessosPosConclusao: result.rows[0].acessos_pos_conclusao });
     } else {
-      res.status(404).json({ message: 'Progresso do curso não encontrado.' });
+      res.status(404).json({ message: 'Progresso não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao verificar acesso à aula:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
+    console.error('Erro ao buscar acessos pós-conclusão:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
+
+// Rota para incrementar o número de acessos pós-conclusão
+app.post('/api/cursos/:cursoId/incrementar-acesso/:userId', async (req, res) => {
+  const { cursoId, userId } = req.params;
+  try {
+    await pool.query('UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE curso_id = $1 AND user_id = $2', [cursoId, userId]);
+    res.json({ message: 'Acesso incrementado com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao incrementar acessos pós-conclusão:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
   }
 });
 
