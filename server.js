@@ -48,6 +48,14 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   }
 });
 
+app.post('/api/cursos/incrementar-acesso', async (req, res) => {
+  const { userId, cursoId } = req.body;
+
+  const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2';
+  await pool.query(query, [userId, cursoId]);
+
+  res.json({ success: true, message: 'Acesso incrementado com sucesso.' });
+});
 
 
 app.post('/api/cursos/concluir', async (req, res) => {
@@ -63,7 +71,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
 
     const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
     await pool.query(resetAcessos, [userId, cursoId]);
-    
+
     if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
