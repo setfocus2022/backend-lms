@@ -32,7 +32,6 @@ mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 
-
 // Rota para obter o número de acessos pós-conclusão
 app.get('/api/cursos/:cursoId/acessos-pos-conclusao/:userId', async (req, res) => {
   const { cursoId, userId } = req.params;
@@ -61,6 +60,23 @@ app.post('/api/cursos/:cursoId/incrementar-acesso/:userId', async (req, res) => 
   }
 });
 
+
+app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
+  const { userId, cursoId } = req.params;
+  try {
+    const query = 'SELECT status FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
+    const result = await pool.query(query, [userId, cursoId]);
+    if (result.rows.length > 0) {
+      res.json({ status: result.rows[0].status });
+    } else {
+      // Retornar um status padrão se não houver entrada
+      res.json({ status: 'Não Iniciado' });
+    }
+  } catch (error) {
+    console.error('Erro ao buscar o status do curso:', error);
+    res.status(500).json({ message: 'Erro interno do servidor.' });
+  }
+});
 
 
 
