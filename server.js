@@ -31,22 +31,36 @@ const mercadopago = require("mercadopago");
 mercadopago.configure({
   access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
-app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
-  const { userId, cursoId } = req.params;
+
+
+app.get('/api/aulas/acesso/:userId/:cursoId/:aulaId', async (req, res) => {
+  const { userId, cursoId, aulaId } = req.params;
+
   try {
-    const query = 'SELECT status FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
-    const result = await pool.query(query, [userId, cursoId]);
-    if (result.rows.length > 0) {
-      res.json({ status: result.rows[0].status });
+    const progresso = await pool.query('SELECT status, acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    if (progresso.rowCount > 0) {
+      const { status, acessos_pos_conclusao } = progresso.rows[0];
+
+      if (status === 'concluido' && acessos_pos_conclusao >= 3) {
+        return res.status(403).json({ message: 'Você já excedeu o número de acessos permitidos para esta aula após a conclusão do curso.' });
+      }
+
+      if (status === 'concluido') {
+        await pool.query('UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+      }
+
+      // Prossiga com a lógica para fornecer acesso à aula
+      res.json({ message: 'Acesso concedido.' });
     } else {
-      // Retornar um status padrão se não houver entrada
-      res.json({ status: 'Não Iniciado' });
+      res.status(404).json({ message: 'Progresso do curso não encontrado.' });
     }
   } catch (error) {
-    console.error('Erro ao buscar o status do curso:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
+    console.error('Erro ao verificar acesso à aula:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+
 
 
 
