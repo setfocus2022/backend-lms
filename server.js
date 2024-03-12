@@ -48,20 +48,6 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   }
 });
 
-app.put('/api/cursos/incrementar-acesso-pos-conclusao', async (req, res) => {
-  const { userId, cursoId } = req.body;
-  
-  try {
-    // Incrementa o contador de acessos após conclusão
-    const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'';
-    await pool.query(query, [userId, cursoId]);
-    
-    res.json({ success: true, message: 'Acesso pós-conclusão incrementado.' });
-  } catch (error) {
-    console.error('Erro ao incrementar acesso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao incrementar acesso pós-conclusão.' });
-  }
-});
 
 
 app.post('/api/cursos/concluir', async (req, res) => {
@@ -75,6 +61,9 @@ app.post('/api/cursos/concluir', async (req, res) => {
     const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
+    const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
+    await pool.query(resetAcessos, [userId, cursoId]);
+    
     if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
