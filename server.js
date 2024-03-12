@@ -606,21 +606,31 @@ app.post('/api/cursos/progresso', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar progresso', error: error.message });
   }
 });
+
 app.get('/api/verificar-acesso/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
 
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM compras_cursos WHERE user_id = $1 AND curso_id = $2 AND status = $3',
-      [userId, cursoId, 'aprovado']
-    );
+    const acessoQuery = 'SELECT * FROM compras_cursos WHERE user_id = $1 AND curso_id = $2 AND status = $3';
+    const acessoResult = await pool.query(acessoQuery, [userId, cursoId, 'aprovado']);
 
-    res.json({ temAcesso: rows.length > 0 });
+    if (acessoResult.rows.length > 0) {
+      const progressoQuery = 'SELECT status, acessos_pos_conclusao FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
+      const progressoResult = await pool.query(progressoQuery, [userId, cursoId]);
+      if (progressoResult.rows[0].status === 'concluido' && progressoResult.rows[0].acessos_pos_conclusao >= 3) {
+        // Lógica para revogar o acesso
+        return res.json({ temAcesso: false, motivo: 'acesso_excedido' });
+      }
+      res.json({ temAcesso: true });
+    } else {
+      res.json({ temAcesso: false, motivo: 'sem_acesso' });
+    }
   } catch (error) {
     console.error('Erro ao verificar acesso:', error);
     res.status(500).json({ success: false, message: 'Erro ao verificar acesso' });
   }
 });
+
 
 app.get('/api/cursos', async (req, res) => {
   try {
