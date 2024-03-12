@@ -38,13 +38,16 @@ app.put('/api/cursos/acessos-pos-conclusao', async (req, res) => {
 
   try {
     const client = await pool.connect();
-  
-    // Incrementar o valor de acessos_pos_conclusao em 1 e decrementar revisoes_restantes em 1 se o status for 'concluido'
-    await client.query(
-      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1, revisoes_restantes = CASE WHEN status = \'concluido\' THEN revisoes_restantes - 1 ELSE revisoes_restantes END WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'',
+
+    const result = await client.query(
+      'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1, revisoes_restantes = CASE WHEN status = \'concluido\' AND revisoes_restantes > 0 THEN revisoes_restantes - 1 ELSE revisoes_restantes END WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\' RETURNING revisoes_restantes',
       [userId, cursoId]
     );
-  
+
+    if (result.rows[0].revisoes_restantes === 0) {
+      await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+    }
+
     client.release();
     res.json({ success: true, message: 'Acessos pós-conclusão atualizados com sucesso.' });
   } catch (error) {
@@ -52,6 +55,7 @@ app.put('/api/cursos/acessos-pos-conclusao', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
+
 
 // Rota para obter o número de acessos pós-conclusão
 app.get('/api/cursos/acessos-pos-conclusao/:userId/:cursoId', async (req, res) => {
@@ -81,12 +85,12 @@ app.get('/api/cursos/acessos-pos-conclusao/:userId/:cursoId', async (req, res) =
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
   try {
-    const query = 'SELECT status FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
+    const query = 'SELECT status, revisoes_restantes FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
     const result = await pool.query(query, [userId, cursoId]);
     if (result.rows.length > 0) {
-      res.json({ status: result.rows[0].status });
+      const status = result.rows[0].revisoes_restantes > 0 ? result.rows[0].status : 'revisoes_esgotadas';
+      res.json({ status: status, revisoesRestantes: result.rows[0].revisoes_restantes });
     } else {
-      // Retornar um status padrão se não houver entrada
       res.json({ status: 'Não Iniciado' });
     }
   } catch (error) {
