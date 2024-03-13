@@ -991,12 +991,13 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
   }
 });
 app.get('/api/cursos-comprados/', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;  // Usando userId do token
+  const userId = req.user.userId;
 
   const query = `
-    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
+    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso, pc.acessos_pos_conclusao
     FROM cursos c
     INNER JOIN compras_cursos cc ON c.id = cc.curso_id
+    LEFT JOIN progresso_cursos pc ON cc.user_id = pc.user_id AND cc.curso_id = pc.curso_id
     WHERE cc.user_id = $1 AND cc.status = 'aprovado'
   `;
 
