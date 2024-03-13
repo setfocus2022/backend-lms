@@ -990,6 +990,35 @@ app.get('/api/compra/status/:compraId', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+
+app.get('/api/check-username/:username', async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const query = 'SELECT COUNT(*) FROM users WHERE username = $1';
+    const result = await pool.query(query, [username]);
+    const exists = result.rows[0].count > 0;
+    res.json({ exists });
+  } catch (error) {
+    console.error('Erro ao verificar username:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
+app.get('/api/check-email/:email', async (req, res) => {
+  const { email } = req.params;
+
+  try {
+    const query = 'SELECT COUNT(*) FROM users WHERE email = $1';
+    const result = await pool.query(query, [email]);
+    const exists = result.rows[0].count > 0;
+    res.json({ exists });
+  } catch (error) {
+    console.error('Erro ao verificar email:', error);
+    res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
 app.get('/api/cursos-comprados/', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
