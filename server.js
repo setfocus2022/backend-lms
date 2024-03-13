@@ -51,10 +51,20 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
 app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
 
-  const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2';
-  await pool.query(query, [userId, cursoId]);
-
-  res.json({ success: true, message: 'Acesso incrementado com sucesso.' });
+  try {
+    const queryUpdate = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
+    const resultUpdate = await pool.query(queryUpdate, [userId, cursoId]);
+    
+    if (resultUpdate.rows.length > 0) {
+      const acessosPosConclusao = resultUpdate.rows[0].acessos_pos_conclusao;
+      res.json({ success: true, message: 'Acesso incrementado com sucesso.', acessos_pos_conclusao: acessosPosConclusao });
+    } else {
+      res.status(404).json({ success: false, message: 'Progresso do curso não encontrado.' });
+    }
+  } catch (error) {
+    console.error('Erro ao incrementar acesso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao incrementar acesso.' });
+  }
 });
 
 
