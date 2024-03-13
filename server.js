@@ -72,21 +72,19 @@ app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
 
   try {
-    const updateQuery = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
-    const updateResult = await pool.query(updateQuery, [userId, cursoId]);
-
-    if (updateResult.rows[0].acessos_pos_conclusao > 3) {
-      const deleteQuery = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
-      await pool.query(deleteQuery, [userId, cursoId]);
-      return res.json({ success: false, message: 'Acesso ao curso foi revogado.' });
+    const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
+    const result = await pool.query(query, [userId, cursoId]);
+    if (result.rows.length > 0) {
+      res.json({ success: true, message: 'Acesso incrementado com sucesso.', acessos_pos_conclusao: result.rows[0].acessos_pos_conclusao });
+    } else {
+      res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
-
-    res.json({ success: true, message: 'Acesso incrementado com sucesso.' });
   } catch (error) {
     console.error('Erro ao incrementar acesso:', error);
     res.status(500).json({ success: false, message: 'Erro ao incrementar acesso.' });
   }
 });
+
 
 
 app.post('/api/cursos/concluir', async (req, res) => {
