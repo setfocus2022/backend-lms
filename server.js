@@ -48,6 +48,26 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   }
 });
 
+app.delete('/api/cursos/excluir-compra/:cursoId', authenticateToken, async (req, res) => {
+  const { cursoId } = req.params;
+  const userId = req.user.userId; // Usando userId do token
+
+  try {
+    const query = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
+    const result = await pool.query(query, [userId, cursoId]);
+
+    if (result.rowCount > 0) {
+      res.json({ success: true, message: 'Curso excluído com sucesso!' });
+    } else {
+      res.status(404).json({ success: false, message: 'Curso não encontrado.' });
+    }
+  } catch (error) {
+    console.error('Erro ao excluir o curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao excluir o curso.' });
+  }
+});
+
+
 app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
 
