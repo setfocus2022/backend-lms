@@ -48,43 +48,14 @@ app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   }
 });
 
-app.delete('/api/cursos/excluir-compra/:cursoId', authenticateToken, async (req, res) => {
-  const { cursoId } = req.params;
-  const userId = req.user.userId; // Usando userId do token
-
-  try {
-    const query = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
-    const result = await pool.query(query, [userId, cursoId]);
-
-    if (result.rowCount > 0) {
-      res.json({ success: true, message: 'Curso excluído com sucesso!' });
-    } else {
-      res.status(404).json({ success: false, message: 'Curso não encontrado.' });
-    }
-  } catch (error) {
-    console.error('Erro ao excluir o curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao excluir o curso.' });
-  }
-});
-
-
 app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
 
-  try {
-    const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
-    const result = await pool.query(query, [userId, cursoId]);
-    if (result.rows.length > 0) {
-      res.json({ success: true, message: 'Acesso incrementado com sucesso.', acessos_pos_conclusao: result.rows[0].acessos_pos_conclusao });
-    } else {
-      res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
-    }
-  } catch (error) {
-    console.error('Erro ao incrementar acesso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao incrementar acesso.' });
-  }
-});
+  const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2';
+  await pool.query(query, [userId, cursoId]);
 
+  res.json({ success: true, message: 'Acesso incrementado com sucesso.' });
+});
 
 
 app.post('/api/cursos/concluir', async (req, res) => {
