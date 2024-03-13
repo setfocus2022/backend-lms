@@ -66,29 +66,22 @@ app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   }
 });
 
-app.delete('/api/cursos-comprados/:userId/:cursoId', authenticateToken, async (req, res) => {
-  const { userId, cursoId } = req.params;
-
-  // Autenticação: Garantir que o userId do token corresponde ao userId do parâmetro
-  if (req.user.userId !== userId) {
-    return res.status(403).json({ success: false, message: 'Ação não permitida.' });
-  }
+app.delete('/api/compras-cursos/:cursoId', authenticateToken, async (req, res) => {
+  const { cursoId } = req.params;
+  const userId = req.user.userId; // Usando userId do token para garantir que o usuário só pode deletar seus próprios cursos
 
   try {
-    // Verifique se o usuário realmente possui o curso e se atingiu o limite de acessos
-    const acessoResult = await pool.query('SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 3', [userId, cursoId]);
+    const deleteQuery = 'DELETE FROM compras_cursos WHERE id = $1 AND user_id = $2 RETURNING *';
+    const result = await pool.query(deleteQuery, [cursoId, userId]);
 
-    if (acessoResult.rowCount === 0) {
-      return res.status(404).json({ success: false, message: 'Curso não encontrado ou limite de acessos não atingido.' });
+    if (result.rows.length > 0) {
+      res.json({ success: true, message: 'Curso excluído com sucesso.' });
+    } else {
+      res.status(404).json({ success: false, message: 'Curso não encontrado ou usuário não corresponde.' });
     }
-
-    // Exclui a entrada correspondente na tabela compras_cursos
-    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    res.json({ success: true, message: 'Curso excluído com sucesso.' });
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao excluir o curso.' });
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
 
