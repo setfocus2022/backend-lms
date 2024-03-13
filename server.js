@@ -66,22 +66,17 @@ app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   }
 });
 
-app.delete('/api/compras-cursos/:cursoId', authenticateToken, async (req, res) => {
+app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res) => {
   const { cursoId } = req.params;
-  const userId = req.user.userId; // Usando userId do token para garantir que o usuário só pode deletar seus próprios cursos
+  const userId = req.user.userId; // Usando o userId do token
 
   try {
-    const deleteQuery = 'DELETE FROM compras_cursos WHERE id = $1 AND user_id = $2 RETURNING *';
-    const result = await pool.query(deleteQuery, [cursoId, userId]);
-
-    if (result.rows.length > 0) {
-      res.json({ success: true, message: 'Curso excluído com sucesso.' });
-    } else {
-      res.status(404).json({ success: false, message: 'Curso não encontrado ou usuário não corresponde.' });
-    }
+    const query = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
+    await pool.query(query, [userId, cursoId]);
+    res.json({ success: true, message: 'Curso excluído com sucesso!' });
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+    res.status(500).json({ success: false, message: 'Erro ao excluir o curso' });
   }
 });
 
