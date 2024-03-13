@@ -52,18 +52,43 @@ app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
 
   try {
-    const queryUpdate = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
-    const resultUpdate = await pool.query(queryUpdate, [userId, cursoId]);
-    
-    if (resultUpdate.rows.length > 0) {
-      const acessosPosConclusao = resultUpdate.rows[0].acessos_pos_conclusao;
-      res.json({ success: true, message: 'Acesso incrementado com sucesso.', acessos_pos_conclusao: acessosPosConclusao });
+    const query = 'UPDATE progresso_cursos SET acessos_pos_conclusao = acessos_pos_conclusao + 1 WHERE user_id = $1 AND curso_id = $2 RETURNING acessos_pos_conclusao';
+    const result = await pool.query(query, [userId, cursoId]);
+
+    if (result.rows.length > 0) {
+      res.json({ success: true, message: 'Acesso incrementado com sucesso.', acessos_pos_conclusao: result.rows[0].acessos_pos_conclusao });
     } else {
-      res.status(404).json({ success: false, message: 'Progresso do curso não encontrado.' });
+      res.status(404).json({ success: false, message: 'Registro não encontrado.' });
     }
   } catch (error) {
     console.error('Erro ao incrementar acesso:', error);
     res.status(500).json({ success: false, message: 'Erro ao incrementar acesso.' });
+  }
+});
+
+app.delete('/api/cursos-comprados/:userId/:cursoId', authenticateToken, async (req, res) => {
+  const { userId, cursoId } = req.params;
+
+  // Autenticação: Garantir que o userId do token corresponde ao userId do parâmetro
+  if (req.user.userId !== userId) {
+    return res.status(403).json({ success: false, message: 'Ação não permitida.' });
+  }
+
+  try {
+    // Verifique se o usuário realmente possui o curso e se atingiu o limite de acessos
+    const acessoResult = await pool.query('SELECT * FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 3', [userId, cursoId]);
+
+    if (acessoResult.rowCount === 0) {
+      return res.status(404).json({ success: false, message: 'Curso não encontrado ou limite de acessos não atingido.' });
+    }
+
+    // Exclui a entrada correspondente na tabela compras_cursos
+    await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    res.json({ success: true, message: 'Curso excluído com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao excluir o curso:', error);
+    res.status(500).json({ success: false, message: 'Erro ao excluir o curso.' });
   }
 });
 
