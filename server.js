@@ -1018,7 +1018,26 @@ app.get('/api/check-email/:email', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
+app.get('/api/cursos-compra/', authenticateToken, async (req, res) => {
+  const userId = req.user.userId;  // Usando userId do token
 
+  const query = `
+    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
+    FROM cursos c
+    INNER JOIN compras_cursos cc ON c.id = cc.curso_id
+    WHERE cc.user_id = $1 AND cc.status = 'aprovado'
+  `;
+
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query(query, [userId]);
+    client.release();
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao listar cursos comprados:', error);
+    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
+  }
+});
 app.get('/api/cursos-comprados/', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
