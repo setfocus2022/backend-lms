@@ -404,19 +404,31 @@ async function processarNotificacao(notification) {
 }
 
 
-
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
-    const paymentStatus = payment.body.status; // Status do pagamento
+    const compraIds = externalReference.split('-');
+    const paymentStatus = payment.body.status;
 
-    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
+
+      if (newStatus === 'aprovado') {
+        // Obter detalhes da compra para inserir no histórico
+        const compraDetails = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
+        const compra = compraDetails.rows[0];
+
+        // Inserir na tabela historico
+        await pool.query(
+          'INSERT INTO historico (user_id, curso_id, compra_id, status, periodo, valor_pago, data_compra, data_aprovacao) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())',
+          [compra.user_id, compra.curso_id, compra.id, newStatus, compra.periodo, compra.valor, compra.created_at]
+        );
+      }
+
+      // Atualizar status na tabela compras_cursos
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
     }));
 
@@ -426,6 +438,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 
 app.post('/api/add-aluno', async (req, res) => {
