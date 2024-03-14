@@ -100,10 +100,19 @@ app.post('/api/cursos/concluir', async (req, res) => {
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
-  } catch (error) {
-    console.error('Erro ao atualizar status e data de conclusão do curso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
-  }
+   // Atualiza o status em historico para 'concluido'
+   const historicoUpdateQuery = `
+   UPDATE historico
+   SET status_progresso = 'concluido', data_conclusao = NOW()
+   WHERE user_id = $1 AND curso_id = $2;
+ `;
+ await pool.query(historicoUpdateQuery, [userId, cursoId]);
+
+ res.json({ success: true, message: 'Curso concluído com sucesso e histórico atualizado.' });
+} catch (error) {
+ console.error('Erro ao concluir curso:', error);
+ res.status(500).json({ success: false, message: 'Erro ao concluir curso.' });
+}
 });
 
 
@@ -192,11 +201,11 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
-      SELECT c.nome, pc.status, COUNT(*) as quantidade
-      FROM progresso_cursos pc
-      JOIN cursos c ON pc.curso_id = c.id
-      WHERE pc.status IN ('iniciado', 'concluido')
-      GROUP BY c.nome, pc.status
+      SELECT c.nome, h.status, COUNT(*) as quantidade
+      FROM historico h
+      JOIN cursos c ON h.curso_id = c.id
+      WHERE h.status IN ('iniciado', 'concluido')
+      GROUP BY c.nome, h.status
     `;
     const { rows } = await pool.query(query);
     res.json(rows);
@@ -211,9 +220,9 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
   try {
     const query = `
       SELECT c.nome, COUNT(*) as quantidade
-      FROM compras_cursos cc
-      JOIN cursos c ON cc.curso_id = c.id
-      WHERE cc.status = 'aprovado'
+      FROM historico h
+      JOIN cursos c ON h.curso_id = c.id
+      WHERE h.status = 'aprovado'
       GROUP BY c.nome
     `;
     const { rows } = await pool.query(query);
@@ -228,30 +237,12 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
 app.get('/api/financeiro/lucro-total', async (req, res) => {
   try {
     const query = `
-      SELECT cc.periodo, c.valor_15d, c.valor_30d, c.valor_6m
-      FROM compras_cursos cc
-      JOIN cursos c ON cc.curso_id = c.id
-      WHERE cc.status = 'aprovado'
+      SELECT SUM(h.valor_pago) as totalLucro
+      FROM historico h
+      WHERE h.status = 'aprovado'
     `;
-
     const { rows } = await pool.query(query);
-    let totalLucro = 0;
-
-    rows.forEach(row => {
-      switch (row.periodo) {
-        case '15d':
-          totalLucro += parseFloat(row.valor_15d);
-          break;
-        case '30d':
-          totalLucro += parseFloat(row.valor_30d);
-          break;
-        case '6m':
-          totalLucro += parseFloat(row.valor_6m);
-          break;
-      }
-    });
-
-    res.json({ totalLucro });
+    res.json({ totalLucro: rows[0].totalLucro });
   } catch (error) {
     console.error('Erro ao calcular o lucro total:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
@@ -615,12 +606,21 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
     } else {
       res.status(404).json({ success: false, message: 'Curso não encontrado.' });
     }
-  } catch (error) {
-    console.error('Erro ao registrar acesso e progresso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao registrar acesso e progresso.', error: error.message });
-  }
-});
+// Insere ou atualiza o registro em historico para o status 'iniciado'
+const historicoQuery = `
+INSERT INTO historico (user_id, curso_id, status_progresso)
+VALUES ($1, $2, 'iniciado')
+ON CONFLICT (user_id, curso_id)
+DO UPDATE SET status_progresso = 'iniciado';
+`;
+await pool.query(historicoQuery, [userId, cursoId]);
 
+res.json({ success: true, message: 'Acesso ao curso registrado com sucesso.' });
+} catch (error) {
+console.error('Erro ao registrar acesso:', error);
+res.status(500).json({ success: false, message: 'Erro ao registrar acesso.' });
+}
+});
 
 
 app.post('/api/cursos/progresso', async (req, res) => {
