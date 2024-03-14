@@ -85,22 +85,16 @@ app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
 
   try {
+    // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
-    await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
-    // Atualizar a tabela historico
-    const historicoUpdate = `
-      INSERT INTO historico (user_id, curso_id, status_progresso, data_conclusao)
-      VALUES ($1, $2, 'concluido', $3)
-      ON CONFLICT (user_id, curso_id)
-      DO UPDATE SET status_progresso = 'concluido', data_conclusao = $3;
-    `;
-    await pool.query(historicoUpdate, [userId, cursoId, dataAtual]);
+    // Atualiza o status e a data de conclusão do curso
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
+    const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
+
     const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
     await pool.query(resetAcessos, [userId, cursoId]);
 
-    const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
     if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
@@ -111,9 +105,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
-
-   
-
 
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
@@ -201,11 +192,11 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
-      SELECT c.nome, h.status, COUNT(*) as quantidade
-      FROM historico h
-      JOIN cursos c ON h.curso_id = c.id
-      WHERE h.status IN ('iniciado', 'concluido')
-      GROUP BY c.nome, h.status
+      SELECT c.nome, pc.status, COUNT(*) as quantidade
+      FROM progresso_cursos pc
+      JOIN cursos c ON pc.curso_id = c.id
+      WHERE pc.status IN ('iniciado', 'concluido')
+      GROUP BY c.nome, pc.status
     `;
     const { rows } = await pool.query(query);
     res.json(rows);
@@ -220,9 +211,9 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
   try {
     const query = `
       SELECT c.nome, COUNT(*) as quantidade
-      FROM historico h
-      JOIN cursos c ON h.curso_id = c.id
-      WHERE h.status = 'aprovado'
+      FROM compras_cursos cc
+      JOIN cursos c ON cc.curso_id = c.id
+      WHERE cc.status = 'aprovado'
       GROUP BY c.nome
     `;
     const { rows } = await pool.query(query);
@@ -237,12 +228,30 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
 app.get('/api/financeiro/lucro-total', async (req, res) => {
   try {
     const query = `
-      SELECT SUM(h.valor_pago) as totalLucro
-      FROM historico h
-      WHERE h.status = 'aprovado'
+      SELECT cc.periodo, c.valor_15d, c.valor_30d, c.valor_6m
+      FROM compras_cursos cc
+      JOIN cursos c ON cc.curso_id = c.id
+      WHERE cc.status = 'aprovado'
     `;
+
     const { rows } = await pool.query(query);
-    res.json({ totalLucro: rows[0].totalLucro });
+    let totalLucro = 0;
+
+    rows.forEach(row => {
+      switch (row.periodo) {
+        case '15d':
+          totalLucro += parseFloat(row.valor_15d);
+          break;
+        case '30d':
+          totalLucro += parseFloat(row.valor_30d);
+          break;
+        case '6m':
+          totalLucro += parseFloat(row.valor_6m);
+          break;
+      }
+    });
+
+    res.json({ totalLucro });
   } catch (error) {
     console.error('Erro ao calcular o lucro total:', error);
     res.status(500).json({ message: 'Erro interno do servidor' });
@@ -395,31 +404,19 @@ async function processarNotificacao(notification) {
 }
 
 
+
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-');
-    const paymentStatus = payment.body.status;
+    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
+    const paymentStatus = payment.body.status; // Status do pagamento
 
+    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
-
-      if (newStatus === 'aprovado') {
-        // Obter detalhes da compra para inserir no histórico
-        const compraDetails = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
-        const compra = compraDetails.rows[0];
-
-        // Inserir na tabela historico
-        await pool.query(
-          'INSERT INTO historico (user_id, curso_id, compra_id, status, periodo, valor_pago, data_compra, data_aprovacao) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())',
-          [compra.user_id, compra.curso_id, compra.id, newStatus, compra.periodo, compra.valor, compra.created_at]
-        );
-      }
-
-      // Atualizar status na tabela compras_cursos
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
     }));
 
@@ -429,7 +426,6 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
-
 
 
 app.post('/api/add-aluno', async (req, res) => {
@@ -559,6 +555,7 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
   const { userId } = req.body;
 
   try {
+    // Consulta para obter os dados do curso comprado
     const cursoRows = await pool.query(
       'SELECT periodo, data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
       [userId, cursoId]
@@ -566,13 +563,22 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
 
     if (cursoRows.rowCount > 0 && cursoRows.rows[0].data_inicio_acesso == null) {
       let intervalo;
+      // Definindo o intervalo de acordo com o período do curso
       switch (cursoRows.rows[0].periodo) {
-        case '15d': intervalo = '15 days'; break;
-        case '30d': intervalo = '30 days'; break;
-        case '6m': intervalo = '6 months'; break;
-        default: return res.status(400).json({ success: false, message: 'Período de curso inválido.' });
+        case '15d':
+          intervalo = '15 days';
+          break;
+        case '30d':
+          intervalo = '30 days';
+          break;
+        case '6m':
+          intervalo = '6 months';
+          break;
+        default:
+          return res.status(400).json({ success: false, message: 'Período de curso inválido.' });
       }
 
+      // Atualiza a data de início e fim de acesso, convertendo para o fuso horário de São Paulo
       await pool.query(`
         UPDATE compras_cursos 
         SET 
@@ -581,22 +587,14 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
         WHERE user_id = $1 AND curso_id = $2
       `, [userId, cursoId]);
 
+      // Insere ou atualiza o registro em progresso_cursos
       const progressoQuery = `
         INSERT INTO progresso_cursos (user_id, curso_id, progresso, status)
         VALUES ($1, $2, 0, 'iniciado')
-        ON CONFLICT (user_id, curso_id) 
-        DO UPDATE SET status = 'iniciado';
+        ON CONFLICT (user_id, curso_id) DO 
+        UPDATE SET status = 'iniciado';
       `;
       await pool.query(progressoQuery, [userId, cursoId]);
-
-      // Inserir ou atualizar na tabela historico
-      const historicoQuery = `
-        INSERT INTO historico (user_id, curso_id, status_progresso)
-        VALUES ($1, $2, 'iniciado')
-        ON CONFLICT (user_id, curso_id)
-        DO UPDATE SET status_progresso = 'iniciado';
-      `;
-      await pool.query(historicoQuery, [userId, cursoId]);
 
       res.json({ success: true, message: 'Acesso ao curso registrado com sucesso e progresso inicializado.' });
     } else if (cursoRows.rowCount > 0) {
