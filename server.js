@@ -78,9 +78,9 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
     );
 
     if (canDeleteResult.rowCount > 0) {
-      // Atualiza o status em progresso_cursos para "Não iniciado"
+      // Atualiza o status e outras colunas relevantes em progresso_cursos
       await pool.query(
-        'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3',
+        'UPDATE progresso_cursos SET status = $1, progresso = 0, acessos_pos_conclusao = 0 WHERE user_id = $2 AND curso_id = $3',
         ['Não iniciado', userId, cursoId]
       );
 
