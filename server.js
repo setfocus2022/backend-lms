@@ -71,30 +71,19 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   const userId = req.user.userId; // Usando o userId do token
 
   try {
-    const client = await pool.connect(); // Use um cliente para transação
+    // Verifica se o curso pode ser excluído (acessos_pos_conclusao >= 3)
+    const canDeleteResult = await pool.query(
+      'SELECT 1 FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 3',
+      [userId, cursoId]
+    );
 
-    // Obtém o ID do registro de "curso excluído" (assumindo que ele exista)
-    const deletedCourseIdResult = await client.query('SELECT id FROM cursos WHERE nome = $1', ['Deleted Course']);
-
-    if (deletedCourseIdResult.rowCount === 0) {
-      // Se não houver registro de "curso excluído", crie um
-      const createDeletedCourseResult = await client.query(
-        'INSERT INTO cursos (nome) VALUES ($1) RETURNING id',
-        ['Deleted Course']
-      );
-      deletedCourseId = createDeletedCourseResult.rows[0].id;
+    if (canDeleteResult.rowCount > 0) {
+      // Exclua de compras_cursos
+      await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+      res.json({ success: true, message: 'Curso excluído com sucesso!' });
     } else {
-      deletedCourseId = deletedCourseIdResult.rows[0].id;
+      res.status(403).json({ success: false, message: 'O curso não pode ser excluído.' });
     }
-
-    // Atualiza compra_id para o ID do curso excluído em historico
-    await client.query('UPDATE historico SET compra_id = $1 WHERE user_id = $2 AND curso_id = $3', [deletedCourseId, userId, cursoId]);
-
-    // Agora exclua de compras_cursos (após a atualização em historico)
-    await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    client.release();
-    res.json({ success: true, message: 'Curso excluído com sucesso!' });
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
     res.status(500).json({ success: false, message: 'Erro ao excluir o curso' });
