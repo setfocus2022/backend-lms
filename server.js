@@ -90,7 +90,7 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
     // Update compra_id to the deleted course ID in historico
     await client.query('UPDATE historico SET compra_id = $1 WHERE user_id = $2 AND curso_id = $3', [deletedCourseId, userId, cursoId]);
 
-    // Then delete from compras_cursos
+    // Now delete from compras_cursos (after the update to historico)
     await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
     client.release();
