@@ -73,8 +73,8 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   try {
     const client = await pool.connect(); // Use a client for transaction
 
-    // Update compra_id to NULL in historico
-    await client.query('UPDATE historico SET compra_id = NULL WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+    // Update compra_id to a default value in historico
+    await client.query('UPDATE historico SET compra_id = -1 WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
     // Then delete from compras_cursos
     await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
