@@ -197,11 +197,11 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   try {
     const query = `
-      SELECT c.nome, pc.status, COUNT(*) as quantidade
-      FROM progresso_cursos pc
-      JOIN cursos c ON pc.curso_id = c.id
-      WHERE pc.status IN ('iniciado', 'concluido')
-      GROUP BY c.nome, pc.status
+      SELECT c.nome, h.status_progresso as status, COUNT(*) as quantidade
+      FROM historico h
+      JOIN cursos c ON h.curso_id = c.id
+      WHERE h.status_progresso IN ('iniciado', 'concluido')
+      GROUP BY c.nome, h.status_progresso
     `;
     const { rows } = await pool.query(query);
     res.json(rows);
@@ -216,9 +216,9 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
   try {
     const query = `
       SELECT c.nome, COUNT(*) as quantidade
-      FROM compras_cursos cc
-      JOIN cursos c ON cc.curso_id = c.id
-      WHERE cc.status = 'aprovado'
+      FROM historico h
+      JOIN cursos c ON h.curso_id = c.id
+      WHERE h.status = 'aprovado'
       GROUP BY c.nome
     `;
     const { rows } = await pool.query(query);
@@ -233,15 +233,14 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
 app.get('/api/financeiro/lucro-total', async (req, res) => {
   try {
     const query = `
-      SELECT cc.periodo, c.valor_15d, c.valor_30d, c.valor_6m
-      FROM compras_cursos cc
-      JOIN cursos c ON cc.curso_id = c.id
-      WHERE cc.status = 'aprovado'
+      SELECT h.periodo, c.valor_15d, c.valor_30d, c.valor_6m
+      FROM historico h
+      JOIN cursos c ON h.curso_id = c.id
+      WHERE h.status = 'aprovado'
     `;
-
     const { rows } = await pool.query(query);
-    let totalLucro = 0;
 
+    let totalLucro = 0;
     rows.forEach(row => {
       switch (row.periodo) {
         case '15d':
