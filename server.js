@@ -71,8 +71,15 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   const userId = req.user.userId; // Usando o userId do token
 
   try {
-    const query = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
-    await pool.query(query, [userId, cursoId]);
+    const client = await pool.connect(); // Use a client for transaction
+
+    // Update compra_id to NULL in historico
+    await client.query('UPDATE historico SET compra_id = NULL WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    // Then delete from compras_cursos
+    await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+    client.release();
     res.json({ success: true, message: 'Curso excluído com sucesso!' });
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
