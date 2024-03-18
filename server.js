@@ -411,13 +411,23 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
-    const paymentStatus = payment.body.status; // Status do pagamento
+    const compraIds = externalReference.split('-'); 
+    const paymentStatus = payment.body.status; 
 
-    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
+
+      // If payment is approved, insert data into 'historico' table
+      if (newStatus === 'aprovado') {
+        const compraData = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
+        const { curso_id, data_compra, periodo, user_id, valor_pago } = compraData.rows[0];
+
+        await pool.query(
+          'INSERT INTO historico (compra_id, curso_id, data_aprovacao, data_compra, periodo, status, user_id, valor_pago) VALUES ($1, $2, now(), $3, $4, $5, $6, $7)',
+          [compraId, curso_id, data_compra, periodo, newStatus, user_id, valor_pago]
+        );
+      }
     }));
 
     res.send("Notificação processada com sucesso.");
