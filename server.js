@@ -750,14 +750,15 @@ app.get('/api/alunos/password-changed/count', async (req, res) => {
 });
 
 app.get('/api/certificados/:userId', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;  // Agora pegando o userId do token
+  const userId = req.user.userId; // Agora pegando o userId do token
 
   try {
+    // Fetch certificates from historico
     const query = `
-      SELECT c.id, c.nome 
+      SELECT c.id, c.nome
       FROM cursos c
-      JOIN progresso_cursos pc ON c.id = pc.curso_id
-      WHERE pc.user_id = $1 AND pc.status = 'concluido'
+      JOIN historico h ON c.id = h.curso_id
+      WHERE h.user_id = $1 AND h.status_progresso = 'concluido'
     `;
     const { rows } = await pool.query(query, [userId]);
     res.json(rows);
