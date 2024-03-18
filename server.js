@@ -78,8 +78,15 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
     );
 
     if (canDeleteResult.rowCount > 0) {
+      // Atualiza o status em progresso_cursos para "Não iniciado"
+      await pool.query(
+        'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3',
+        ['Não iniciado', userId, cursoId]
+      );
+
       // Exclua de compras_cursos
       await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
       res.json({ success: true, message: 'Curso excluído com sucesso!' });
     } else {
       res.status(403).json({ success: false, message: 'O curso não pode ser excluído.' });
