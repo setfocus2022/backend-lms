@@ -560,6 +560,7 @@ app.delete('/api/delete-aluno/:userId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao excluir aluno' });
   }
 });
+
 app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
   const { cursoId } = req.params;
   const { userId } = req.body;
@@ -573,6 +574,7 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
 
     if (cursoRows.rowCount > 0 && cursoRows.rows[0].data_inicio_acesso == null) {
       let intervalo;
+
       // Definindo o intervalo de acordo com o período do curso
       switch (cursoRows.rows[0].periodo) {
         case '15d':
@@ -601,10 +603,16 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
       const progressoQuery = `
         INSERT INTO progresso_cursos (user_id, curso_id, progresso, status)
         VALUES ($1, $2, 0, 'iniciado')
-        ON CONFLICT (user_id, curso_id) DO 
-        UPDATE SET status = 'iniciado';
+        ON CONFLICT (user_id, curso_id) DO UPDATE
+        SET status = 'iniciado';
       `;
       await pool.query(progressoQuery, [userId, cursoId]);
+
+      // Update status_progresso in historico table
+      await pool.query(
+        'UPDATE historico SET status_progresso = $1 WHERE user_id = $2 AND curso_id = $3',
+        ['iniciado', userId, cursoId]
+      );
 
       res.json({ success: true, message: 'Acesso ao curso registrado com sucesso e progresso inicializado.' });
     } else if (cursoRows.rowCount > 0) {
@@ -617,7 +625,6 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao registrar acesso e progresso.', error: error.message });
   }
 });
-
 
 
 app.post('/api/cursos/progresso', async (req, res) => {
