@@ -71,13 +71,13 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   const userId = req.user.userId; // Usando o userId do token
 
   try {
-    const client = await pool.connect(); // Use a client for transaction
+    const client = await pool.connect(); // Use um cliente para transação
 
-    // Get the ID of the "deleted course" record (assuming it exists)
+    // Obtém o ID do registro de "curso excluído" (assumindo que ele exista)
     const deletedCourseIdResult = await client.query('SELECT id FROM cursos WHERE nome = $1', ['Deleted Course']);
 
     if (deletedCourseIdResult.rowCount === 0) {
-      // If no "deleted course" record exists, create one
+      // Se não houver registro de "curso excluído", crie um
       const createDeletedCourseResult = await client.query(
         'INSERT INTO cursos (nome) VALUES ($1) RETURNING id',
         ['Deleted Course']
@@ -87,10 +87,10 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
       deletedCourseId = deletedCourseIdResult.rows[0].id;
     }
 
-    // Update compra_id to the deleted course ID in historico
+    // Atualiza compra_id para o ID do curso excluído em historico
     await client.query('UPDATE historico SET compra_id = $1 WHERE user_id = $2 AND curso_id = $3', [deletedCourseId, userId, cursoId]);
 
-    // Now delete from compras_cursos (after the update to historico)
+    // Agora exclua de compras_cursos (após a atualização em historico)
     await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
     client.release();
