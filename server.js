@@ -74,7 +74,18 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
     const client = await pool.connect(); // Use a client for transaction
 
     // Get the ID of the "deleted purchase" record (assuming it exists)
-    const deletedPurchaseId = await client.query('SELECT id FROM compras_cursos WHERE status = $1', ['deleted']);
+    const deletedPurchaseIdResult = await client.query('SELECT id FROM compras_cursos WHERE status = $1', ['deleted']);
+
+    if (deletedPurchaseIdResult.rowCount === 0) {
+      // If no "deleted purchase" record exists, create one
+      const createDeletedPurchaseResult = await client.query(
+        'INSERT INTO compras_cursos (user_id, curso_id, status) VALUES ($1, $2, $3) RETURNING id',
+        [userId, -1, 'deleted'] // Use -1 or any other placeholder value for curso_id
+      );
+      deletedPurchaseId = createDeletedPurchaseResult.rows[0].id;
+    } else {
+      deletedPurchaseId = deletedPurchaseIdResult.rows[0].id;
+    }
 
     // Update compra_id to the deleted purchase ID in historico
     await client.query('UPDATE historico SET compra_id = $1 WHERE user_id = $2 AND curso_id = $3', [deletedPurchaseId, userId, cursoId]);
