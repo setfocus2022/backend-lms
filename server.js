@@ -71,29 +71,8 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   const userId = req.user.userId; // Usando o userId do token
 
   try {
-    const client = await pool.connect(); // Use um cliente para transação
-
-    // Obtém o ID do registro de "curso excluído" (assumindo que ele exista)
-    const deletedCourseIdResult = await client.query('SELECT id FROM cursos WHERE nome = $1', ['Deleted Course']);
-
-    if (deletedCourseIdResult.rowCount === 0) {
-      // Se não houver registro de "curso excluído", crie um
-      const createDeletedCourseResult = await client.query(
-        'INSERT INTO cursos (nome) VALUES ($1) RETURNING id',
-        ['Deleted Course']
-      );
-      deletedCourseId = createDeletedCourseResult.rows[0].id;
-    } else {
-      deletedCourseId = deletedCourseIdResult.rows[0].id;
-    }
-
-    // Atualiza compra_id para o ID do curso excluído em historico
-    await client.query('UPDATE historico SET compra_id = $1 WHERE user_id = $2 AND curso_id = $3', [deletedCourseId, userId, cursoId]);
-
-    // Agora exclua de compras_cursos (após a atualização em historico)
-    await client.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
-    client.release();
+    const query = 'DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2';
+    await pool.query(query, [userId, cursoId]);
     res.json({ success: true, message: 'Curso excluído com sucesso!' });
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
@@ -436,22 +415,25 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-'); 
-    const paymentStatus = payment.body.status; 
+    const compraIds = externalReference.split('-');
+    const paymentStatus = payment.body.status;
 
     await Promise.all(compraIds.map(async compraId => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      // If payment is approved, insert data into 'historico' table
+      // Cria o registro historico apenas se a compra for aprovada e existir
       if (newStatus === 'aprovado') {
         const compraData = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
-        const { curso_id, data_compra, periodo, user_id, valor_pago } = compraData.rows[0];
 
-        await pool.query(
-          'INSERT INTO historico (compra_id, curso_id, data_aprovacao, data_compra, periodo, status, user_id, valor_pago) VALUES ($1, $2, now(), $3, $4, $5, $6, $7)',
-          [compraId, curso_id, data_compra, periodo, newStatus, user_id, valor_pago]
-        );
+        if (compraData.rowCount > 0) { // Verifica se a compra existe
+          const { curso_id, data_compra, periodo, user_id, valor_pago } = compraData.rows[0];
+
+          await pool.query(
+            'INSERT INTO historico (compra_id, curso_id, data_aprovacao, data_compra, periodo, status, user_id, valor_pago) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [compraId, curso_id, new Date(), data_compra, periodo, newStatus, user_id, valor_pago]
+          );
+        }
       }
     }));
 
@@ -461,7 +443,6 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
-
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
