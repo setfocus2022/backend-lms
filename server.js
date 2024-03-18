@@ -80,7 +80,6 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   }
 });
 
-
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
 
@@ -88,12 +87,19 @@ app.post('/api/cursos/concluir', async (req, res) => {
     // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
 
-    // Atualiza o status e a data de conclusão do curso
+    // Atualiza o status e a data de conclusão do curso em progresso_cursos
     const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
+    // Reseta os acessos pós-conclusão
     const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
     await pool.query(resetAcessos, [userId, cursoId]);
+
+    // Update status_progresso in historico table
+    await pool.query(
+      'UPDATE historico SET status_progresso = $1 WHERE user_id = $2 AND curso_id = $3',
+      ['concluido', userId, cursoId]
+    );
 
     if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
@@ -105,7 +111,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
-
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
