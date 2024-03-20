@@ -407,21 +407,23 @@ async function processarNotificacao(notification) {
   // Supondo que a notification tenha um campo 'data.id'
   const paymentId = notification.data.id;
 
-  try {
-    // Busca o pagamento pelo ID para obter detalhes
-    const paymentResponse = await mercadopago.payment.get(paymentId);
-    const paymentInfo = paymentResponse.body;
+  setTimeout(async () => {
+    try {
+      // Busca o pagamento pelo ID para obter detalhes
+      const paymentResponse = await mercadopago.payment.get(paymentId);
+      const paymentInfo = paymentResponse.body;
 
-    if (paymentInfo.status === 'approved') {
-      // Supondo que o external_reference seja o ID da compra
-      const compraId = paymentInfo.external_reference;
-      const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
-      await pool.query(query, ['aprovado', compraId]);
+      if (paymentInfo.status === 'approved') {
+        // Supondo que o external_reference seja o ID da compra
+        const compraId = paymentInfo.external_reference;
+        const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
+        await pool.query(query, ['aprovado', compraId]);
+      }
+    } catch (error) {
+      console.error('Erro ao processar pagamento:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Erro ao processar pagamento:', error);
-    throw error;
-  }
+  }, 300000); // 5 minutes delay
 }
 
 
