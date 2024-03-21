@@ -63,7 +63,21 @@ app.get('/api/user/all-purchases', authenticateToken, async (req, res) => {
     const { rows } = await client.query(query, [userId]);
     client.release();
 
-    res.json(rows); // Return all purchases
+    // Format the date and time for each purchase
+    const formattedPurchases = rows.map(purchase => {
+      const formattedDate = new Date(purchase.data_compra).toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo', // Adjust to the desired time zone
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false // Use 24-hour format
+      });
+      return { ...purchase, data_compra: formattedDate };
+    });
+
+    res.json(formattedPurchases);
   } catch (error) {
     console.error('Erro ao listar todas as compras:', error);
     res.status(500).json({ success: false, message: 'Erro ao listar compras' });
