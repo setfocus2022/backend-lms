@@ -84,6 +84,55 @@ app.get('/api/user/all-purchases', authenticateToken, async (req, res) => {
   }
 });
 
+const generateCode = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+app.post('/api/user/check-email', async (req, res) => {
+  const { email } = req.body;
+  try {
+      const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+      if (user.rows.length > 0) {
+          // O usuário existe, prossiga com a lógica de envio do código
+          // (a ser implementada no próximo passo)
+          res.json({ success: true, message: 'E-mail encontrado. Enviando código...' });
+      } else {
+          // Usuário não encontrado
+          res.status(404).json({ success: false, message: 'E-mail não encontrado.' });
+      }
+  } catch (error) {
+      console.error('Erro ao verificar e-mail:', error);
+      res.status(500).json({ success: false, message: 'Erro ao verificar e-mail.' });
+  }
+});
+
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+    host: 'smtp.zoho.com',
+    port: 465,
+    secure: true, // true for 465, false for other ports
+    auth: {
+        user: 'seu-email@zoho.com',
+        pass: 'sua-senha',
+    },
+});
+
+const sendVerificationCode = async (email, code) => {
+    const mailOptions = {
+        from: 'seu-email@zoho.com',
+        to: email,
+        subject: 'Código de Verificação',
+        text: `Seu código de verificação é: ${code}`,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log('Código de verificação enviado para:', email);
+    } catch (error) {
+        console.error('Erro ao enviar código de verificação:', error);
+    }
+};
 
 app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
