@@ -413,7 +413,7 @@ async function processarNotificacao(notification) {
       const paymentResponse = await mercadopago.payment.get(paymentId);
       const paymentInfo = paymentResponse.body;
 
-      if (paymentInfo.status === 'approved') {
+      if (paymentInfo.status === 'aprovado') {
         // Supondo que o external_reference seja o ID da compra
         const compraId = paymentInfo.external_reference;
         const query = 'UPDATE compras_cursos SET status = $1 WHERE id = $2';
