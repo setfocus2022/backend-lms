@@ -114,7 +114,7 @@ const transporter = nodemailer.createTransport({
     secure: false, // true for 465, false for other ports como 587 com TLS
     auth: {
         user: 'suport.connecteadfam@outlook.com',
-        pass: '@desenho1977',
+        pass: '@Desenho1977',
     },
 });
 
