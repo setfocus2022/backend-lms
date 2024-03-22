@@ -143,15 +143,14 @@ app.post('/api/user/verify-code', async (req, res) => {
   const { email, code } = req.body;
 
   try {
-    // Verifica se o código e o e-mail correspondem ao que está no banco
     const user = await pool.query('SELECT * FROM users WHERE email = $1 AND cod_rec = $2', [email, code]);
 
     if (user.rows.length > 0) {
-      // O código é válido
+      // Limpar o cod_rec após a verificação bem-sucedida
+      await pool.query('UPDATE users SET cod_rec = NULL WHERE email = $1', [email]);
+
       res.json({ success: true, message: 'Código verificado com sucesso.' });
-      // Aqui você pode atualizar o estado do usuário, permitindo que ele prossiga para redefinir a senha
     } else {
-      // Código inválido ou e-mail não encontrado
       res.status(401).json({ success: false, message: 'Código de verificação inválido.' });
     }
   } catch (error) {
@@ -159,6 +158,7 @@ app.post('/api/user/verify-code', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
   }
 });
+
 
 app.post('/api/user/update-password', async (req, res) => {
   const { email, newPassword } = req.body;
