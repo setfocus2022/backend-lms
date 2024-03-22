@@ -87,24 +87,29 @@ app.get('/api/user/all-purchases', authenticateToken, async (req, res) => {
 const generateCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
-
 app.post('/api/user/check-email', async (req, res) => {
   const { email } = req.body;
   try {
-      const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-      if (user.rows.length > 0) {
-          // O usuário existe, prossiga com a lógica de envio do código
-          // (a ser implementada no próximo passo)
-          res.json({ success: true, message: 'E-mail encontrado. Enviando código...' });
-      } else {
-          // Usuário não encontrado
-          res.status(404).json({ success: false, message: 'E-mail não encontrado.' });
-      }
+    const user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (user.rows.length > 0) {
+      // O usuário existe, prossiga com a lógica de envio do código
+      const code = generateCode(); // Gera um novo código de 6 dígitos
+      await pool.query('UPDATE users SET cod_rec = $1 WHERE email = $2', [code, email]); // Atualiza o código na tabela do usuário
+
+      // Envia o código por e-mail
+      await sendVerificationCode(email, code);
+
+      res.json({ success: true, message: 'E-mail encontrado. Enviando código...' });
+    } else {
+      // Usuário não encontrado
+      res.status(404).json({ success: false, message: 'E-mail não encontrado.' });
+    }
   } catch (error) {
-      console.error('Erro ao verificar e-mail:', error);
-      res.status(500).json({ success: false, message: 'Erro ao verificar e-mail.' });
+    console.error('Erro ao verificar e-mail:', error);
+    res.status(500).json({ success: false, message: 'Erro ao verificar e-mail.' });
   }
 });
+
 
 const nodemailer = require('nodemailer');
 
