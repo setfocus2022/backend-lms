@@ -139,42 +139,27 @@ const sendVerificationCode = async (email, code) => {
     }
 };
 
+
 app.post('/api/user/verify-code', async (req, res) => {
   const { email, code } = req.body;
-
-  try {
-    const user = await pool.query('SELECT * FROM users WHERE email = $1 AND cod_rec = $2', [email, code]);
-
-    if (user.rows.length > 0) {
-      // Limpar o cod_rec após a verificação bem-sucedida
-      await pool.query('UPDATE users SET cod_rec = NULL WHERE email = $1', [email]);
-
-      res.json({ success: true, message: 'Código verificado com sucesso.' });
-    } else {
-      res.status(401).json({ success: false, message: 'Código de verificação inválido.' });
-    }
-  } catch (error) {
-    console.error('Erro ao verificar o código:', error);
-    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  // Verifica se o código e o e-mail correspondem ao que está no banco
+  const user = await pool.query('SELECT * FROM users WHERE email = $1 AND cod_rec = $2', [email, code]);
+  if (user.rows.length > 0) {
+    // Código correto, limpa o cod_rec e avisa o usuário para mudar a senha
+    await pool.query('UPDATE users SET cod_rec = NULL WHERE email = $1', [email]);
+    res.json({ success: true, message: 'Código verificado com sucesso. Por favor, redefinir sua senha.' });
+  } else {
+    res.status(401).json({ success: false, message: 'Código de verificação inválido.' });
   }
 });
 
-
 app.post('/api/user/update-password', async (req, res) => {
   const { email, newPassword } = req.body;
-
-  try {
-    // Atualiza a senha do usuário (certifique-se de usar hash na senha)
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-
-    await pool.query('UPDATE users SET senha = $1 WHERE email = $2', [hashedPassword, email]);
-
-    res.json({ success: true, message: 'Senha atualizada com sucesso.' });
-  } catch (error) {
-    console.error('Erro ao atualizar senha:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar a senha.' });
-  }
+  // Atualiza a senha do usuário (certifique-se de usar hash na senha)
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+  await pool.query('UPDATE users SET senha = $1 WHERE email = $2', [hashedPassword, email]);
+  res.json({ success: true, message: 'Senha atualizada com sucesso.' });
 });
 
 
