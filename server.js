@@ -109,19 +109,19 @@ app.post('/api/user/check-email', async (req, res) => {
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-    host: 'smtp.zoho.com',
-    port: 465,
-    secure: true, // true for 465, false for other ports
+    host: 'smtp.office365.com',
+    port: 587,
+    secure: false, // true for 465, false for other ports como 587 com TLS
     auth: {
-        user: 'seu-email@zoho.com',
-        pass: 'sua-senha',
+        user: 'suport.connecteadfam@outlook.com',
+        pass: '@desenho1977',
     },
 });
 
 const sendVerificationCode = async (email, code) => {
     const mailOptions = {
-        from: 'seu-email@zoho.com',
-        to: email,
+        from: 'suport.connecteadfam@outlook.com', // endereço do remetente
+        to: email, // endereço do destinatário
         subject: 'Código de Verificação',
         text: `Seu código de verificação é: ${code}`,
     };
@@ -133,6 +133,45 @@ const sendVerificationCode = async (email, code) => {
         console.error('Erro ao enviar código de verificação:', error);
     }
 };
+
+app.post('/api/user/verify-code', async (req, res) => {
+  const { email, code } = req.body;
+
+  try {
+    // Verifica se o código e o e-mail correspondem ao que está no banco
+    const user = await pool.query('SELECT * FROM users WHERE email = $1 AND cod_rec = $2', [email, code]);
+
+    if (user.rows.length > 0) {
+      // O código é válido
+      res.json({ success: true, message: 'Código verificado com sucesso.' });
+      // Aqui você pode atualizar o estado do usuário, permitindo que ele prossiga para redefinir a senha
+    } else {
+      // Código inválido ou e-mail não encontrado
+      res.status(401).json({ success: false, message: 'Código de verificação inválido.' });
+    }
+  } catch (error) {
+    console.error('Erro ao verificar o código:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor.' });
+  }
+});
+
+app.post('/api/user/update-password', async (req, res) => {
+  const { email, newPassword } = req.body;
+
+  try {
+    // Atualiza a senha do usuário (certifique-se de usar hash na senha)
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await pool.query('UPDATE users SET senha = $1 WHERE email = $2', [hashedPassword, email]);
+
+    res.json({ success: true, message: 'Senha atualizada com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao atualizar senha:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar a senha.' });
+  }
+});
+
 
 app.post('/api/cursos/incrementar-acesso', async (req, res) => {
   const { userId, cursoId } = req.body;
