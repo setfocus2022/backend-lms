@@ -515,11 +515,34 @@ app.post("/api/checkout", async (req, res) => {
   }
 });
 
+// Função para enviar email com detalhes da compra
+const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompra) => {
+  const htmlContent = `
+    <h1>Detalhes da Compra</h1>
+    <p>Aqui estão os detalhes da sua compra:</p>
+    <ul>
+      ${itensCompra.map(item => `<li>${item.title} - R$ ${item.unit_price}</li>`).join('')}
+    </ul>
+    <p>Total: R$ ${total}</p>
+    <p>Data da Compra: ${dataCompra}</p>
+  `;
 
+  const mailOptions = {
+    from: 'suport.connecteadfam@outlook.com',
+    to: email,
+    subject: 'Detalhes da sua compra',
+    html: htmlContent,
+  };
 
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('Email de confirmação de compra enviado para:', email);
+  } catch (error) {
+    console.error('Erro ao enviar email de confirmação:', error);
+  }
+};
 
-
-
+// Endpoint que recebe notificações de pagamento
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
@@ -533,17 +556,18 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      // Cria o registro historico apenas se a compra for aprovada e existir
       if (newStatus === 'aprovado') {
+        // Envie o email após a confirmação da compra
         const compraData = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
-
-        if (compraData.rowCount > 0) { // Verifica se a compra existe
-          const { curso_id, data_compra, periodo, user_id, valor_pago } = compraData.rows[0];
-
-          await pool.query(
-            'INSERT INTO historico (compra_id, curso_id, data_aprovacao, data_compra, periodo, status, user_id, valor_pago) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-            [compraId, curso_id, new Date(), data_compra, periodo, newStatus, user_id, valor_pago]
-          );
+        if (compraData.rowCount > 0) {
+          const { curso_id, user_id } = compraData.rows[0];
+          const userData = await pool.query('SELECT email FROM users WHERE id = $1', [user_id]);
+          const cursoData = await pool.query('SELECT title, unit_price FROM cursos WHERE id = $1', [curso_id]);
+          const email = userData.rows[0].email;
+          const itensCompra = [{ title: cursoData.rows[0].title, unit_price: cursoData.rows[0].unit_price }];
+          const total = cursoData.rows[0].unit_price;
+          const dataCompra = new Date().toLocaleString('pt-BR');
+          enviarEmailConfirmacaoCompra(email, itensCompra, total, dataCompra);
         }
       }
     }));
@@ -554,6 +578,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 app.post('/api/add-aluno', async (req, res) => {
   const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
