@@ -479,24 +479,13 @@ app.post("/api/checkout", async (req, res) => {
   const { items, userId } = req.body;
 
   try {
-    const compras = await Promise.all(items.map(async item => {
+    const comprasRegistradas = await Promise.all(items.map(async item => {
       const { rows } = await pool.query(
-        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id",
-        [userId, item.id, 'pendente', item.periodo]
+        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
+        [userId, item.id, item.periodo]
       );
       return rows[0].id;
     }));
-
-    // Inicia um monitoramento para cada compra registrada
-    compras.forEach(compraId => {
-      setTimeout(async () => {
-        const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
-        if (rows.length > 0 && rows[0].status === 'pendente') {
-          await pool.query('DELETE FROM compras_cursos WHERE id = $1', [compraId]);
-          console.log(`Compra pendente expirada com ID ${compraId} foi excluída.`);
-        }
-      }, 300000); // 5 minutos
-    });
 
     const preference = {
       items: items.map(item => ({
@@ -505,17 +494,26 @@ app.post("/api/checkout", async (req, res) => {
         unit_price: item.unit_price,
         quantity: 1,
       })),
-      external_reference: compras.join('-'),
+      external_reference: comprasRegistradas.join('-'),
     };
 
     const response = await mercadopago.preferences.create(preference);
-    res.json({ preferenceId: response.body.id, comprasRegistradas: compras });
+    
+    comprasRegistradas.forEach(compraId => {
+      setTimeout(async () => {
+        const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+        if (rows.length > 0 && rows[0].status === 'pendente') {
+          await pool.query('UPDATE compras_cursos SET status = \'Não Realizada\' WHERE id = $1', [compraId]);
+        }
+      }, 300000); // 5 minutos
+    });
+
+    res.json({ preferenceId: response.body.id, comprasRegistradas });
   } catch (error) {
     console.error("Erro ao criar a preferência de pagamento:", error);
     res.status(500).json({ error: error.toString() });
   }
 });
-
 
 
 
