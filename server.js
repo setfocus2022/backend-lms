@@ -969,7 +969,9 @@ function authenticateToken(req, res, next) {
     next()
   })
 }
-
+app.get('/api/validateToken', authenticateToken, (req, res) => {
+  res.json({ role: req.user.role });
+});
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
