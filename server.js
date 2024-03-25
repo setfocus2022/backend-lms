@@ -977,11 +977,13 @@ function authenticateToken(req, res, next) {
   });
 }
 app.get('/api/validateToken', authenticateToken, (req, res) => {
-
+  // Se o middleware não bloqueou a requisição, então o token é válido
+  // Você pode optar por enviar de volta mais informações do usuário, se necessário
   res.json({
+    isValid: true,
+    userId: req.user.userId,
     role: req.user.role,
-    username: req.user.username,
-    userId: req.user.userId
+    username: req.user.username
   });
 });
 
