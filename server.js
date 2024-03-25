@@ -965,15 +965,20 @@ function authenticateToken(req, res, next) {
 
   jwt.verify(token, jwtSecret, (err, user) => {
     if (err) return res.sendStatus(403)
-    req.user = user
+    req.user = {
+      userId: payload.userId,
+      role: payload.role,
+      username: payload.username,
+    };
     next()
   })
 }
 app.get('/api/validateToken', authenticateToken, (req, res) => {
+
   res.json({
     role: req.user.role,
     username: req.user.username,
-    userId: req.user.id
+    userId: req.user.userId
   });
 });
 
