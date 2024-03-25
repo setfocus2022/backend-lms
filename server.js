@@ -958,28 +958,24 @@ app.delete('/deleteAllUsers', async (req, res) => {
   }
 });
 function authenticateToken(req, res, next) {
-  // Obter o token do cabeçalho de autorização
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = authHeader && authHeader.split(' ')[1]; // Extrai o token do cabeçalho Authorization
 
-  if (token == null) return res.sendStatus(401); // Se não há token, retorna 401
+  if (token == null) return res.sendStatus(401); // Se não houver token, retorna 401 (Não Autorizado)
 
-  // Verificar o token
   jwt.verify(token, jwtSecret, (err, user) => {
-    if (err) return res.sendStatus(403); // Se o token não é válido, retorna 403
+    if (err) return res.sendStatus(403); // Se houver um erro na verificação, retorna 403 (Proibido)
 
-    // Se o token for válido, anexa os dados do usuário ao objeto req
+    // Adicionando os detalhes do usuário ao objeto de solicitação
     req.user = {
-      userId: user.userId,
-      role: user.role,
-      username: user.username,
+      userId: user.userId, // Certifique-se de que o payload do token tenha 'userId'
+      role: user.role, // Certifique-se de que o payload do token tenha 'role'
+      username: user.username // Certifique-se de que o payload do token tenha 'username'
     };
 
-    next(); // Passa para a próxima função middleware
+    next(); // Chama o próximo middleware na pilha
   });
 }
-
-module.exports = authenticateToken;
 app.get('/api/validateToken', authenticateToken, (req, res) => {
 
   res.json({
@@ -1011,7 +1007,8 @@ app.post("/api/user/login", async (req, res) => {
       // Compara a senha fornecida com a hash armazenada
       const senhaValida = await bcrypt.compare(senha, user.senha);
       if (senhaValida) {
-        const token = jwt.sign({ userId: user.id, role: user.role }, jwtSecret, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '1h' });
+
 
         res.json({
           success: true,
