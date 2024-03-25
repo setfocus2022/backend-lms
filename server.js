@@ -16,7 +16,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000','https://85e2-187-109-132-62.ngrok-free.app' ,'https://precious-pike-coveralls.cyclic.app', 'https://connect-ead.vercel.app' , 'https://www.connectfam.com.br'],
+  origin: ['http://localhost:3000','https://dc48-187-109-132-62.ngrok-free.app' ,'https://precious-pike-coveralls.cyclic.app', 'https://connect-ead.vercel.app' , 'https://www.connectfam.com.br'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -977,8 +977,6 @@ function authenticateToken(req, res, next) {
   });
 }
 app.get('/api/validateToken', authenticateToken, (req, res) => {
-  // Se o middleware não bloqueou a requisição, então o token é válido
-  // Você pode optar por enviar de volta mais informações do usuário, se necessário
   res.json({
     isValid: true,
     userId: req.user.userId,
@@ -986,6 +984,7 @@ app.get('/api/validateToken', authenticateToken, (req, res) => {
     username: req.user.username
   });
 });
+
 
 
 app.post("/api/user/login", async (req, res) => {
