@@ -958,21 +958,28 @@ app.delete('/deleteAllUsers', async (req, res) => {
   }
 });
 function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization']
-  const token = authHeader && authHeader.split(' ')[1]
+  // Obter o token do cabeçalho de autorização
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  if (token == null) return res.sendStatus(401)
+  if (token == null) return res.sendStatus(401); // Se não há token, retorna 401
 
+  // Verificar o token
   jwt.verify(token, jwtSecret, (err, user) => {
-    if (err) return res.sendStatus(403)
+    if (err) return res.sendStatus(403); // Se o token não é válido, retorna 403
+
+    // Se o token for válido, anexa os dados do usuário ao objeto req
     req.user = {
-      userId: payload.userId,
-      role: payload.role,
-      username: payload.username,
+      userId: user.userId,
+      role: user.role,
+      username: user.username,
     };
-    next()
-  })
+
+    next(); // Passa para a próxima função middleware
+  });
 }
+
+module.exports = authenticateToken;
 app.get('/api/validateToken', authenticateToken, (req, res) => {
 
   res.json({
