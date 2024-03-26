@@ -549,24 +549,20 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
-    const paymentStatus = payment.body.status; // Status do pagamento
+    const compraIds = externalReference.split('-');
+    const paymentStatus = payment.body.status;
 
-    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
-      
-      // Atualiza o status na tabela compras_cursos
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      // Insere ou atualiza o registro correspondente na tabela historico
-      const insertHistorico = `
+      // Inserir ou atualizar na tabela 'historico'
+      await pool.query(`
         INSERT INTO historico (compra_id, status, data_atualizacao) 
         VALUES ($1, $2, NOW()) 
         ON CONFLICT (compra_id) 
         DO UPDATE SET status = $2, data_atualizacao = NOW();
-      `;
-      await pool.query(insertHistorico, [compraId, newStatus]);
+      `, [compraId, newStatus]);
     }));
 
     res.send("Notificação processada com sucesso.");
@@ -575,6 +571,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 
 
