@@ -625,9 +625,9 @@ app.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.acesso, instituicaoNome: user.instituicaonome }, // Atenção à capitalização
+      { id: user.id, role: user.acesso, instituicaoNome: user.instituicaonome },
       jwtSecret,
-      { expiresIn: '1h' }
+      { expiresIn: '12h' }
     );
 
     if (!token) {
@@ -640,7 +640,7 @@ app.post('/login', async (req, res) => {
       username: user.identificador,
       role: user.acesso,
       token,
-      instituicaoNome: user.instituicaonome // Atenção à capitalização
+      instituicaoNome: user.instituicaonome 
     });
   } catch (err) {
     console.log('Erro na consulta do banco de dados:', err);
