@@ -549,27 +549,24 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split('-');
-    const paymentStatus = payment.body.status;
+    const compraIds = externalReference.split('-'); // Divide o external_reference nos IDs das compras
+    const paymentStatus = payment.body.status; // Status do pagamento
 
+    // Processa cada ID de compra baseado no status do pagamento
     await Promise.all(compraIds.map(async compraId => {
-      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado'; // Atualiza o status baseado no status do pagamento
+      
+      // Atualiza o status na tabela compras_cursos
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      if (newStatus === 'aprovado') {
-        // Envie o email após a confirmação da compra
-        const compraData = await pool.query('SELECT * FROM compras_cursos WHERE id = $1', [compraId]);
-        if (compraData.rowCount > 0) {
-          const { curso_id, user_id } = compraData.rows[0];
-          const userData = await pool.query('SELECT email FROM users WHERE id = $1', [user_id]);
-          const cursoData = await pool.query('SELECT title, unit_price FROM cursos WHERE id = $1', [curso_id]);
-          const email = userData.rows[0].email;
-          const itensCompra = [{ title: cursoData.rows[0].title, unit_price: cursoData.rows[0].unit_price }];
-          const total = cursoData.rows[0].unit_price;
-          const dataCompra = new Date().toLocaleString('pt-BR');
-          enviarEmailConfirmacaoCompra(email, itensCompra, total, dataCompra);
-        }
-      }
+      // Insere ou atualiza o registro correspondente na tabela historico
+      const insertHistorico = `
+        INSERT INTO historico (compra_id, status, data_atualizacao) 
+        VALUES ($1, $2, NOW()) 
+        ON CONFLICT (compra_id) 
+        DO UPDATE SET status = $2, data_atualizacao = NOW();
+      `;
+      await pool.query(insertHistorico, [compraId, newStatus]);
     }));
 
     res.send("Notificação processada com sucesso.");
@@ -578,6 +575,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 
 app.post('/api/add-aluno', async (req, res) => {
