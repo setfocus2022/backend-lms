@@ -555,24 +555,21 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     await Promise.all(compraIds.map(async compraId => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
 
-      // Buscar userId associado a compraId
-      const userQueryResult = await pool.query('SELECT user_id FROM compras_cursos WHERE id = $1', [compraId]);
-      const userId = userQueryResult.rows[0].user_id;
+      // Buscar userId e data_compra associado a compraId
+      const compraInfo = await pool.query('SELECT user_id, created_at FROM compras_cursos WHERE id = $1', [compraId]);
+      const userId = compraInfo.rows[0].user_id;
+      const dataCompra = compraInfo.rows[0].created_at;
 
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
       if (newStatus === 'aprovado') {
-        const cursoQueryResult = await pool.query('SELECT curso_id FROM compras_cursos WHERE id = $1', [compraId]);
-        const cursoId = cursoQueryResult.rows[0].curso_id;
-      
         await pool.query(`
-          INSERT INTO historico (compra_id, user_id, curso_id, status, data_aprovacao) 
-          VALUES ($1, $2, $3, $4, NOW()) 
+          INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao) 
+          VALUES ($1, $2, (SELECT curso_id FROM compras_cursos WHERE id = $1), $3, $4, NOW()) 
           ON CONFLICT (compra_id) 
-          DO UPDATE SET status = $4, data_aprovacao = NOW();
-        `, [compraId, userId, cursoId, newStatus]);
+          DO UPDATE SET status = $3, data_aprovacao = NOW();
+        `, [compraId, userId, newStatus, dataCompra]);
       }
-      
     }));
 
     res.send("Notificação processada com sucesso.");
@@ -581,7 +578,6 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
-
 
 
 
