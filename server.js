@@ -556,13 +556,15 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      // Inserir ou atualizar na tabela 'historico'
-      await pool.query(`
-        INSERT INTO historico (compra_id, status, data_atualizacao) 
-        VALUES ($1, $2, NOW()) 
-        ON CONFLICT (compra_id) 
-        DO UPDATE SET status = $2, data_atualizacao = NOW();
-      `, [compraId, newStatus]);
+      // Assumindo que a tabela 'historico' deve refletir o status do pagamento e a data de aprovação
+      if (newStatus === 'aprovado') {
+        await pool.query(`
+          INSERT INTO historico (compra_id, status, data_aprovacao) 
+          VALUES ($1, $2, NOW()) 
+          ON CONFLICT (compra_id) 
+          DO UPDATE SET status = $2, data_aprovacao = NOW();
+        `, [compraId, newStatus]);
+      }
     }));
 
     res.send("Notificação processada com sucesso.");
