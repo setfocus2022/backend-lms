@@ -562,13 +562,17 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
       if (newStatus === 'aprovado') {
+        const cursoQueryResult = await pool.query('SELECT curso_id FROM compras_cursos WHERE id = $1', [compraId]);
+        const cursoId = cursoQueryResult.rows[0].curso_id;
+      
         await pool.query(`
-          INSERT INTO historico (compra_id, user_id, status, data_aprovacao) 
-          VALUES ($1, $2, $3, NOW()) 
+          INSERT INTO historico (compra_id, user_id, curso_id, status, data_aprovacao) 
+          VALUES ($1, $2, $3, $4, NOW()) 
           ON CONFLICT (compra_id) 
-          DO UPDATE SET status = $3, data_aprovacao = NOW();
-        `, [compraId, userId, newStatus]);
+          DO UPDATE SET status = $4, data_aprovacao = NOW();
+        `, [compraId, userId, cursoId, newStatus]);
       }
+      
     }));
 
     res.send("Notificação processada com sucesso.");
