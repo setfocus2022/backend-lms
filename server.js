@@ -554,9 +554,13 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
     await Promise.all(compraIds.map(async compraId => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
+
+      // Buscar userId associado a compraId
+      const userQueryResult = await pool.query('SELECT user_id FROM compras_cursos WHERE id = $1', [compraId]);
+      const userId = userQueryResult.rows[0].user_id;
+
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
-      // Assumindo que a tabela 'historico' deve refletir o status do pagamento e a data de aprovação
       if (newStatus === 'aprovado') {
         await pool.query(`
           INSERT INTO historico (compra_id, user_id, status, data_aprovacao) 
@@ -573,6 +577,7 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 
 
