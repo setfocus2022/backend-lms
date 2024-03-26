@@ -559,11 +559,11 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       // Assumindo que a tabela 'historico' deve refletir o status do pagamento e a data de aprovação
       if (newStatus === 'aprovado') {
         await pool.query(`
-          INSERT INTO historico (compra_id, status, data_aprovacao) 
-          VALUES ($1, $2, NOW()) 
+          INSERT INTO historico (compra_id, user_id, status, data_aprovacao) 
+          VALUES ($1, $2, $3, NOW()) 
           ON CONFLICT (compra_id) 
-          DO UPDATE SET status = $2, data_aprovacao = NOW();
-        `, [compraId, newStatus]);
+          DO UPDATE SET status = $3, data_aprovacao = NOW();
+        `, [compraId, userId, newStatus]);
       }
     }));
 
