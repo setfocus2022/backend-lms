@@ -252,28 +252,37 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
     const userData = userResult.rows[0];
     const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
-    // Busca informações do curso
-    const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
+    // Recupera os dados do curso
+    const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
     const cursoResult = await pool.query(cursoQuery, [cursoId]);
     if (cursoResult.rows.length === 0) {
       return res.status(404).send('Curso não encontrado');
     }
     const cursoData = cursoResult.rows[0];
 
-    // Busca a data de conclusão do curso em historico
+    // Verifica se o usuário completou o curso e recupera a data de conclusão da tabela 'historico'
     const historicoQuery = 'SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'';
     const historicoResult = await pool.query(historicoQuery, [userId, cursoId]);
     if (historicoResult.rows.length === 0) {
-      return res.status(404).send('Informações de conclusão de curso não encontradas em historico');
+      return res.status(403).send('Certificado não disponível. Curso não concluído.');
     }
     const { data_conclusao } = historicoResult.rows[0];
 
-    // Cria o documento PDF
+    // Formata a data de conclusão
+    const dataConclusaoFormatada = new Date(data_conclusao).toLocaleString('pt-BR', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    // Cria o documento PDF e adiciona o texto
     const certificadoPath = path.join(__dirname, 'certificado.pdf');
     const existingPdfBytes = fs.readFileSync(certificadoPath);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
-
-    // Configura a fonte e adiciona o texto
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const firstPage = pdfDoc.getPages()[0];
     const fontSize = 60;
@@ -292,15 +301,7 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
       font: font,
       color: rgb(0, 0, 0),
     });
-    firstPage.drawText(new Date(data_conclusao).toLocaleString('pt-BR', {
-      timeZone: 'UTC',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }), {
+    firstPage.drawText(dataConclusaoFormatada, {
       x: 705.5,
       y: 750.0,
       size: fontSize,
