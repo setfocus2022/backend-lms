@@ -209,7 +209,6 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   }
 });
 
-
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
 
@@ -225,10 +224,10 @@ app.post('/api/cursos/concluir', async (req, res) => {
     const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
     await pool.query(resetAcessos, [userId, cursoId]);
 
-    // Update status_progresso in historico table
+    // Atualiza status_progresso e data_conclusao na tabela historico
     await pool.query(
-      'UPDATE historico SET status_progresso = $1 WHERE user_id = $2 AND curso_id = $3',
-      ['concluido', userId, cursoId]
+      'UPDATE historico SET status_progresso = $1, data_conclusao = $2 WHERE user_id = $3 AND curso_id = $4',
+      ['concluido', dataAtual, userId, cursoId]
     );
 
     if (result.rowCount > 0) {
@@ -241,6 +240,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
+
 
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
