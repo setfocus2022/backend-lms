@@ -217,18 +217,20 @@ app.post('/api/cursos/concluir', async (req, res) => {
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
 
     // Atualiza o status e a data de conclusão do curso em progresso_cursos
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4 RETURNING time_certificado';
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
     const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
 
-    if (result.rows.length > 0) {
-      const timeCertificado = result.rows[0].time_certificado;
+    // Reseta os acessos pós-conclusão
+    const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
+    await pool.query(resetAcessos, [userId, cursoId]);
 
-      // Atualiza o campo data_conclusao em historico com time_certificado
-      await pool.query(
-        'UPDATE historico SET data_conclusao = $1 WHERE user_id = $2 AND curso_id = $3',
-        [timeCertificado, userId, cursoId]
-      );
+    // Atualiza status_progresso e data_conclusao na tabela historico
+    await pool.query(
+      'UPDATE historico SET status_progresso = $1, data_conclusao = $2 WHERE user_id = $3 AND curso_id = $4',
+      ['concluido', dataAtual, userId, cursoId]
+    );
 
+    if (result.rowCount > 0) {
       res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
@@ -238,6 +240,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
+
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
 
