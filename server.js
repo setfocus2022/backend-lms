@@ -242,6 +242,59 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
+app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
+  const { userId, cursoId } = req.params;
+
+  try {
+    // Busca informações do usuário
+    const userInfo = await pool.query('SELECT nome, sobrenome FROM users WHERE id = $1', [userId]);
+    if (userInfo.rows.length === 0) {
+      return res.status(404).send('Usuário não encontrado');
+    }
+    const { nome, sobrenome } = userInfo.rows[0];
+
+    // Busca informações do curso
+    const cursoInfo = await pool.query('SELECT nome FROM cursos WHERE id = $1', [cursoId]);
+    if (cursoInfo.rows.length === 0) {
+      return res.status(404).send('Curso não encontrado');
+    }
+    const { nome: nomeCurso } = cursoInfo.rows[0];
+
+    // Busca a data de conclusão do curso em historico
+    const historicoInfo = await pool.query('SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'', [userId, cursoId]);
+    if (historicoInfo.rows.length === 0) {
+      return res.status(404).send('Informações de conclusão de curso não encontradas');
+    }
+    const { data_conclusao } = historicoInfo.rows[0];
+
+    // Gera o PDF
+    const certificadoPath = path.join(__dirname, 'certificado.pdf');
+    const pdfDoc = await PDFDocument.load(fs.readFileSync(certificadoPath));
+    const page = pdfDoc.getPages()[0];
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontSize = 24;
+
+    // Adiciona o texto
+    page.drawText(`${nome} ${sobrenome}`, { x: 50, y: 450, size: fontSize, font });
+    page.drawText(nomeCurso, { x: 50, y: 400, size: fontSize, font });
+    page.drawText(data_conclusao.toLocaleString('pt-BR'), { x: 50, y: 350, size: fontSize, font });
+
+    // Serializa o PDF
+    const pdfBytes = await pdfDoc.save();
+
+    // Envia o PDF como resposta
+    res.writeHead(200, {
+      'Content-Length': Buffer.byteLength(pdfBytes),
+      'Content-Type': 'application/pdf',
+      'Content-disposition': 'attachment;filename=certificado.pdf',
+    }).end(pdfBytes);
+  } catch (error) {
+    console.error('Erro ao gerar o certificado:', error);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
