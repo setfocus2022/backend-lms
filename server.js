@@ -239,7 +239,6 @@ app.post('/api/cursos/concluir', async (req, res) => {
   }
 });
 
-
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
 
