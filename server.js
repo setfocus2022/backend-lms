@@ -243,80 +243,73 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
   const { userId, cursoId } = req.params;
 
   try {
-    // Busca informações do usuário
-    const userInfo = await pool.query('SELECT nome, sobrenome FROM users WHERE id = $1', [userId]);
-    if (userInfo.rows.length === 0) {
+    // Recupera os dados do usuário
+    const userQuery = 'SELECT * FROM users WHERE id = $1';
+    const userResult = await pool.query(userQuery, [userId]);
+    if (userResult.rows.length === 0) {
       return res.status(404).send('Usuário não encontrado');
     }
-    const { nome, sobrenome } = userInfo.rows[0];
+    const userData = userResult.rows[0];
+    const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
     // Busca informações do curso
-    const cursoInfo = await pool.query('SELECT nome FROM cursos WHERE id = $1', [cursoId]);
-    if (cursoInfo.rows.length === 0) {
+    const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
+    const cursoResult = await pool.query(cursoQuery, [cursoId]);
+    if (cursoResult.rows.length === 0) {
       return res.status(404).send('Curso não encontrado');
     }
-    const { nome: nomeCurso } = cursoInfo.rows[0];
+    const cursoData = cursoResult.rows[0];
 
     // Busca a data de conclusão do curso em historico
-    const historicoInfo = await pool.query('SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'', [userId, cursoId]);
-    if (historicoInfo.rows.length === 0) {
-      return res.status(404).send('Informações de conclusão de curso não encontradas');
+    const historicoQuery = 'SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'';
+    const historicoResult = await pool.query(historicoQuery, [userId, cursoId]);
+    if (historicoResult.rows.length === 0) {
+      return res.status(404).send('Informações de conclusão de curso não encontradas em historico');
     }
-    const { data_conclusao } = historicoInfo.rows[0];
+    const { data_conclusao } = historicoResult.rows[0];
 
-    // Gera o PDF
+    // Cria o documento PDF
     const certificadoPath = path.join(__dirname, 'certificado.pdf');
-    const pdfDoc = await PDFDocument.load(fs.readFileSync(certificadoPath));
-    const firstPage = pdfDoc.getPages()[0];
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontSize = 60; // Tamanho da fonte ajustado
+    const existingPdfBytes = fs.readFileSync(certificadoPath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
 
-    // Adiciona o texto no PDF
-    firstPage.drawText(`${nome} ${sobrenome}`, {
+    // Configura a fonte e adiciona o texto
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const firstPage = pdfDoc.getPages()[0];
+    const fontSize = 60;
+
+    firstPage.drawText(nomeCompleto, {
       x: 705.5,
       y: 1175.0,
       size: fontSize,
       font: font,
       color: rgb(0, 0, 0),
     });
-    firstPage.drawText(nomeCurso, {
+    firstPage.drawText(cursoData.nome, {
       x: 705.5,
       y: 925.0,
       size: fontSize,
       font: font,
       color: rgb(0, 0, 0),
     });
-    // Verifica se data_conclusao é nula antes de usar toLocaleString
-    if (data_conclusao) {
-      firstPage.drawText(new Date(data_conclusao).toLocaleString('pt-BR', {
-        timeZone: 'UTC',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }), {
-        x: 705.5,
-        y: 750.0,
-        size: fontSize,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
-    } else {
-      firstPage.drawText('Data de conclusão não disponível', {
-        x: 705.5,
-        y: 750.0,
-        size: fontSize,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
-    }
+    firstPage.drawText(new Date(data_conclusao).toLocaleString('pt-BR', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    }), {
+      x: 705.5,
+      y: 750.0,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
 
-    // Serializa o PDF
+    // Finaliza o documento e envia a resposta
     const pdfBytes = await pdfDoc.save();
-
-    // Envia o PDF como resposta
     res.writeHead(200, {
       'Content-Length': Buffer.byteLength(pdfBytes),
       'Content-Type': 'application/pdf',
