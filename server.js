@@ -209,29 +209,28 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   }
 });
 
+const { v4: uuidv4 } = require('uuid');
+
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
 
   try {
-    // Define a data e hora atuais de São Paulo (UTC-3)
     const dataAtual = new Date(new Date().setHours(new Date().getHours() - 3)).toISOString();
+    const codigoIndentificador = uuidv4().replace(/-/g, '');
 
-    // Atualiza o status e a data de conclusão do curso em progresso_cursos
-    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2 WHERE user_id = $3 AND curso_id = $4';
-    const result = await pool.query(query, ['concluido', dataAtual, userId, cursoId]);
+    const query = 'UPDATE progresso_cursos SET status = $1, time_certificado = $2, cod_indent = $3 WHERE user_id = $4 AND curso_id = $5';
+    const result = await pool.query(query, ['concluido', dataAtual, codigoIndentificador, userId, cursoId]);
 
-    // Reseta os acessos pós-conclusão
     const resetAcessos = 'UPDATE progresso_cursos SET acessos_pos_conclusao = 0 WHERE user_id = $1 AND curso_id = $2';
     await pool.query(resetAcessos, [userId, cursoId]);
 
-    // Atualiza status_progresso e data_conclusao na tabela historico
     await pool.query(
-      'UPDATE historico SET status_progresso = $1, data_conclusao = $2 WHERE user_id = $3 AND curso_id = $4',
-      ['concluido', dataAtual, userId, cursoId]
+      'UPDATE historico SET status_progresso = $1, data_conclusao = $2, cod_indent = $3 WHERE user_id = $4 AND curso_id = $5',
+      ['concluido', dataAtual, codigoIndentificador, userId, cursoId]
     );
 
     if (result.rowCount > 0) {
-      res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.' });
+      res.json({ success: true, message: 'Status do curso e data de conclusão atualizados.', cod_indent: codigoIndentificador });
     } else {
       res.status(404).json({ success: false, message: 'Curso ou usuário não encontrado.' });
     }
@@ -240,6 +239,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
+
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
 
@@ -319,87 +319,91 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
   }).end(pdfBytes);
 });
 
-
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  // Busca o nome e sobrenome do usuário
-  const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
-  const userResult = await pool.query(userQuery, [username]);
-  if (userResult.rows.length === 0) {
-    return res.status(404).send('Usuário não encontrado');
+  try {
+    const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
+    const userResult = await pool.query(userQuery, [username]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).send('Usuário não encontrado');
+    }
+    const userData = userResult.rows[0];
+    const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
+
+    const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
+    const cursoResult = await pool.query(cursoQuery, [cursoId]);
+    if (cursoResult.rows.length === 0) {
+      return res.status(404).send('Curso não encontrado');
+    }
+    const cursoData = cursoResult.rows[0];
+
+    const progressoQuery = 'SELECT time_certificado, cod_indent FROM progresso_cursos WHERE user_id = (SELECT id FROM users WHERE username = $1) AND curso_id = $2';
+    const progressoResult = await pool.query(progressoQuery, [username, cursoId]);
+    if (progressoResult.rows.length === 0) {
+      return res.status(404).send('Progresso do curso não encontrado');
+    }
+    const progressoData = progressoResult.rows[0];
+
+    const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    const codigoIndentificador = progressoData.cod_indent;
+
+    const certificadoPath = path.join(__dirname, 'certificado.pdf');
+    const existingPdfBytes = fs.readFileSync(certificadoPath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+
+    // Adiciona os textos e o código identificador no PDF
+    const fontSize = 12;
+    const textWidth = font.widthOfTextAtSize(codigoIndentificador, fontSize);
+    // Definir as posições para o texto de verificação e o código identificador
+    const xPosition = 50; // exemplo, ajuste conforme necessário
+    const yPositionTextoVerificacao = 100; // exemplo, ajuste conforme necessário
+    const yPositionCodigo = yPositionTextoVerificacao - 20; // exemplo, ajuste conforme necessário
+
+    const textoVerificacao = "Para verificar a autenticidade deste certificado acesse a página: https://www.connectfam.com.br/usuario/certificados";
+    firstPage.drawText(textoVerificacao, {
+      x: xPosition,
+      y: yPositionTextoVerificacao,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+
+    firstPage.drawText(codigoIndentificador, {
+      x: xPosition + textWidth + 5, // um pequeno espaço após o texto de verificação
+      y: yPositionCodigo,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+
+    // Serializa o PDF modificado
+    const pdfBytes = await pdfDoc.save();
+
+    // Envia o PDF como resposta
+    res.writeHead(200, {
+      'Content-Length': Buffer.byteLength(pdfBytes),
+      'Content-Type': 'application/pdf',
+      'Content-disposition': 'attachment;filename=certificado.pdf',
+    }).end(pdfBytes);
+
+  } catch (error) {
+    console.error('Erro ao gerar o certificado:', error);
+    res.status(500).send('Erro ao gerar o certificado');
   }
-  const userData = userResult.rows[0];
-  const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
-
-  // Busca os detalhes do curso
-  const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
-  const cursoResult = await pool.query(cursoQuery, [cursoId]);
-  if (cursoResult.rows.length === 0) {
-    return res.status(404).send('Curso não encontrado');
-  }
-  const cursoData = cursoResult.rows[0];
-
-  // Busca a data de conclusão do curso
-  const progressoQuery = 'SELECT historico FROM data_conclusao WHERE user_id = (SELECT id FROM users WHERE username = $1) AND curso_id = $2';
-  const progressoResult = await pool.query(progressoQuery, [username, cursoId]);
-  if (progressoResult.rows.length === 0) {
-    return res.status(404).send('Progresso do curso não encontrado');
-  }
-  const progressoData = progressoResult.rows[0];
-  // Formata a data e hora no formato 'dd/mm/aaaa 00:00'
-  const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
-    timeZone: 'UTC', // Use 'UTC' aqui se o horário já está correto no banco de dados
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  });
-  
-  // Carrega o modelo de certificado PDF
-  const certificadoPath = path.join(__dirname, 'certificado.pdf');
-  const existingPdfBytes = fs.readFileSync(certificadoPath);
-  const pdfDoc = await PDFDocument.load(existingPdfBytes);
-
-  // Configura a fonte
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const pages = pdfDoc.getPages();
-  const firstPage = pages[0];
-  const fontSize = 60;
-
-  firstPage.drawText(nomeCompleto, {
-    x: 705.5,
-    y: 1175.0,
-    size: fontSize,
-    font: font,
-    color: rgb(0, 0, 0),
-  });
-  firstPage.drawText(cursoData.nome, {
-    x: 705.5,
-    y: 925.0,
-    size: fontSize,
-    font: font,
-    color: rgb(0, 0, 0),
-  });
-  firstPage.drawText(dataConclusao, {
-    x: 705.5,
-    y: 750.0,
-    size: fontSize,
-    font: font,
-    color: rgb(0, 0, 0),
-  });
-
-  // Serializa o PDF modificado
-  const pdfBytes = await pdfDoc.save();
-
-  // Envia o PDF como resposta
-  res.writeHead(200, {
-    'Content-Length': Buffer.byteLength(pdfBytes),
-    'Content-Type': 'application/pdf',
-    'Content-disposition': 'attachment;filename=certificado.pdf',
-  }).end(pdfBytes);
 });
 
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
