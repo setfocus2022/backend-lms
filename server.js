@@ -249,42 +249,67 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
       return res.status(404).send('Usuário não encontrado');
     }
     const { nome, sobrenome } = userInfo.rows[0];
+    const nomeCompleto = `${nome} ${sobrenome}`;
 
     // Busca informações do curso
     const cursoInfo = await pool.query('SELECT nome FROM cursos WHERE id = $1', [cursoId]);
     if (cursoInfo.rows.length === 0) {
       return res.status(404).send('Curso não encontrado');
     }
-    const { nome: nomeCurso } = cursoInfo.rows[0];
+    const cursoData = cursoInfo.rows[0];
 
-    // Busca a data de conclusão do curso em historico
-    const historicoInfo = await pool.query('SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'', [userId, cursoId]);
-    if (historicoInfo.rows.length === 0 || !historicoInfo.rows[0].data_conclusao) {
-      return res.status(404).send('Informações de conclusão de curso não encontradas ou data de conclusão não definida');
+    // Busca a data de conclusão do curso em progresso_cursos
+    const progressoQuery = 'SELECT time_certificado FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND status = \'concluido\'';
+    const progressoResult = await pool.query(progressoQuery, [userId, cursoId]);
+    if (progressoResult.rows.length === 0) {
+      return res.status(403).send('Certificado não disponível. Curso não concluído.');
     }
-    const { data_conclusao } = historicoInfo.rows[0];
+    const progressoData = progressoResult.rows[0];
+    const dataConclusao = new Date(progressoData.time_certificado).toLocaleString('pt-BR', {
+      timeZone: 'UTC',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
 
-    // Gera o PDF
+    // Cria o documento PDF
     const certificadoPath = path.join(__dirname, 'certificado.pdf');
-    const pdfDoc = await PDFDocument.load(fs.readFileSync(certificadoPath));
-    const page = pdfDoc.getPages()[0];
+    const existingPdfBytes = fs.readFileSync(certificadoPath);
+    const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+    // Configura a fonte
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontSize = 24;
+    const firstPage = pdfDoc.getPages()[0];
+    const fontSize = 60;
 
-    // Adiciona o texto
-    page.drawText(`${nome} ${sobrenome}`, { x: 50, y: 450, size: fontSize, font });
-    page.drawText(nomeCurso, { x: 50, y: 400, size: fontSize, font });
-    // Verifica se data_conclusao não é nula antes de formatar
-    if (data_conclusao) {
-      page.drawText(data_conclusao.toLocaleString('pt-BR'), { x: 50, y: 350, size: fontSize, font });
-    } else {
-      page.drawText('Data de conclusão não disponível', { x: 50, y: 350, size: fontSize, font });
-    }
+    // Adiciona o nome completo do usuário, nome do curso e data de conclusão
+    firstPage.drawText(nomeCompleto, {
+      x: 705.5,
+      y: 1175.0,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+    firstPage.drawText(cursoData.nome, {
+      x: 705.5,
+      y: 925.0,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
+    firstPage.drawText(dataConclusao, {
+      x: 705.5,
+      y: 750.0,
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0),
+    });
 
-    // Serializa o PDF
+    // Finaliza o documento e envia a resposta
     const pdfBytes = await pdfDoc.save();
-
-    // Envia o PDF como resposta
     res.writeHead(200, {
       'Content-Length': Buffer.byteLength(pdfBytes),
       'Content-Type': 'application/pdf',
@@ -295,6 +320,7 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
     res.status(500).send('Erro interno do servidor');
   }
 });
+
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
