@@ -238,13 +238,12 @@ app.post('/api/cursos/concluir', async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao atualizar status e data de conclusão do curso.' });
   }
 });
-
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
 
   try {
-    // Recupera os dados do usuário
-    const userQuery = 'SELECT * FROM users WHERE id = $1';
+    // Busca informações do usuário
+    const userQuery = 'SELECT nome, sobrenome FROM users WHERE id = $1';
     const userResult = await pool.query(userQuery, [userId]);
     if (userResult.rows.length === 0) {
       return res.status(404).send('Usuário não encontrado');
@@ -252,24 +251,22 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
     const userData = userResult.rows[0];
     const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
 
-    // Recupera os dados do curso
-    const cursoQuery = 'SELECT * FROM cursos WHERE id = $1';
+    // Busca informações do curso
+    const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
     const cursoResult = await pool.query(cursoQuery, [cursoId]);
     if (cursoResult.rows.length === 0) {
       return res.status(404).send('Curso não encontrado');
     }
     const cursoData = cursoResult.rows[0];
 
-    // Verifica se o usuário completou o curso e recupera a data de conclusão da tabela 'historico'
+    // Busca a data de conclusão do curso em historico
     const historicoQuery = 'SELECT data_conclusao FROM historico WHERE user_id = $1 AND curso_id = $2 AND status_progresso = \'concluido\'';
     const historicoResult = await pool.query(historicoQuery, [userId, cursoId]);
     if (historicoResult.rows.length === 0) {
-      return res.status(403).send('Certificado não disponível. Curso não concluído.');
+      return res.status(404).send('Informações de conclusão de curso não encontradas');
     }
-    const { data_conclusao } = historicoResult.rows[0];
-
-    // Formata a data de conclusão
-    const dataConclusaoFormatada = new Date(data_conclusao).toLocaleString('pt-BR', {
+    const historicoData = historicoResult.rows[0];
+    const dataConclusao = historicoData.data_conclusao ? new Date(historicoData.data_conclusao).toLocaleString('pt-BR', {
       timeZone: 'UTC',
       day: '2-digit',
       month: '2-digit',
@@ -277,37 +274,21 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
       hour: '2-digit',
       minute: '2-digit',
       hour12: false
-    });
+    }) : 'Data não disponível';
 
-    // Cria o documento PDF e adiciona o texto
+    // Cria o documento PDF
     const certificadoPath = path.join(__dirname, 'certificado.pdf');
     const existingPdfBytes = fs.readFileSync(certificadoPath);
     const pdfDoc = await PDFDocument.load(existingPdfBytes);
+
+    // Configura a fonte e adiciona o texto
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const firstPage = pdfDoc.getPages()[0];
-    const fontSize = 60;
+    const fontSize = 60; // Ajuste conforme necessário
 
-    firstPage.drawText(nomeCompleto, {
-      x: 705.5,
-      y: 1175.0,
-      size: fontSize,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-    firstPage.drawText(cursoData.nome, {
-      x: 705.5,
-      y: 925.0,
-      size: fontSize,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
-    firstPage.drawText(dataConclusaoFormatada, {
-      x: 705.5,
-      y: 750.0,
-      size: fontSize,
-      font: font,
-      color: rgb(0, 0, 0),
-    });
+    firstPage.drawText(nomeCompleto, { x: 50, y: 550, size: fontSize, font });
+    firstPage.drawText(cursoData.nome, { x: 50, y: 500, size: fontSize, font });
+    firstPage.drawText(dataConclusao, { x: 50, y: 450, size: fontSize, font });
 
     // Finaliza o documento e envia a resposta
     const pdfBytes = await pdfDoc.save();
