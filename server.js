@@ -187,30 +187,28 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
 
   try {
     // Verifica se o curso pode ser excluído (acessos_pos_conclusao >= 3)
-    const canDeleteResult = await pool.query(
+    const progressoResult = await pool.query(
       'SELECT 1 FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 3',
       [userId, cursoId]
     );
 
-    if (canDeleteResult.rowCount > 0) {
-      // Atualiza o status em progresso_cursos para "Não iniciado"
-      await pool.query(
-        'UPDATE progresso_cursos SET status = $1 WHERE user_id = $2 AND curso_id = $3',
-        ['Não iniciado', userId, cursoId]
-      );
+    if (progressoResult.rowCount > 0) {
+      // Exclua de progresso_cursos
+      await pool.query('DELETE FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
       // Exclua de compras_cursos
       await pool.query('DELETE FROM compras_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
-      res.json({ success: true, message: 'Curso excluído com sucesso!' });
+      res.json({ success: true, message: 'Curso excluído com sucesso de progresso_cursos e compras_cursos!' });
     } else {
-      res.status(403).json({ success: false, message: 'O curso não pode ser excluído.' });
+      res.status(403).json({ success: false, message: 'O curso não atingiu os critérios para ser excluído.' });
     }
   } catch (error) {
     console.error('Erro ao excluir o curso:', error);
     res.status(500).json({ success: false, message: 'Erro ao excluir o curso' });
   }
 });
+
 
 app.post('/api/cursos/concluir', async (req, res) => {
   const { userId, cursoId } = req.body;
