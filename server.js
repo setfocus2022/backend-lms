@@ -337,6 +337,13 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
+  const codIndentResult = await pool.query('SELECT cod_indent FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+
+  if (codIndentResult.rows.length === 0) {
+    return res.status(404).send('Código identificador não encontrado.');
+  }
+
+const codIndent = codIndentResult.rows[0].cod_indent;
   // Busca o nome e sobrenome do usuário
   const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
@@ -382,6 +389,8 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const pages = pdfDoc.getPages();
   const firstPage = pages[0];
   const fontSize = 60;
+
+  
   const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
 
   // Desenhe o texto de verificação
