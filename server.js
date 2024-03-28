@@ -367,6 +367,22 @@ firstPage.drawText(codIndent, {
   }).end(pdfBytes);
 });
 
+app.get('/api/validar-certificado/:codIndent', async (req, res) => {
+  const { codIndent } = req.params;
+
+  try {
+    // Substitua 'your_table' pelo nome da sua tabela de histórico
+    const result = await pool.query('SELECT * FROM historico WHERE cod_indent = $1', [codIndent]);
+    if (result.rows.length > 0) {
+      res.json({ isValid: true });
+    } else {
+      res.json({ isValid: false });
+    }
+  } catch (error) {
+    console.error('Erro ao validar o certificado:', error);
+    res.status(500).json({ message: 'Erro interno do servidor ao validar o certificado.' });
+  }
+});
 
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
