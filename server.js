@@ -315,8 +315,8 @@ const codeIndentFontSize = 14;
 
 // Mudar a posição y mais para cima na página
 // Você pode precisar ajustar esses valores para atender ao layout do seu certificado
-const verificationTextYPos = 100; // posição y para o texto de verificação
-const codeIndentYPos = 80; // posição y para o código identificador
+const verificationTextYPos = 400; // posição y para o texto de verificação
+const codeIndentYPos = 380; // posição y para o código identificador
 
 // Desenhar o texto de verificação
 firstPage.drawText(verificationText, {
