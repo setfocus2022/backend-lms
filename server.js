@@ -29,7 +29,7 @@ app.use(express.json());
 const mercadopago = require("mercadopago");
 // APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142
 mercadopago.configure({
-  access_token: "APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142",
+  access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
@@ -256,7 +256,7 @@ app.post('/api/cursos/concluir', async (req, res) => {
 });
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
-  const codIndentResult = await pool.query('SELECT cod_indent FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
+  const codIndentResult = await pool.query('SELECT cod_indent FROM historico WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
   if (codIndentResult.rows.length === 0) {
     return res.status(404).send('Código identificador não encontrado.');
