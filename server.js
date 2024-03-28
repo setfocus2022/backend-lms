@@ -256,7 +256,13 @@ app.post('/api/cursos/concluir', async (req, res) => {
 });
 app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
+  const codIndentResult = await pool.query('SELECT cod_indent FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
 
+  if (codIndentResult.rows.length === 0) {
+    return res.status(404).send('Código identificador não encontrado.');
+  }
+  
+  const codIndent = codIndentResult.rows[0].cod_indent;
   // Busca o nome e sobrenome do usuário
   const userQuery = 'SELECT nome, sobrenome FROM users WHERE id = $1';
   const userResult = await pool.query(userQuery, [userId]);
@@ -300,6 +306,26 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const firstPage = pdfDoc.getPages()[0];
   const fontSize = 60;
+// Dentro da função que gera o PDF do certificado:
+const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
+
+// Desenhe o texto de verificação
+firstPage.drawText(verificationText, {
+  x: 50, // Substitua pelo valor x correto
+  y: 50, // Substitua pelo valor y correto
+  size: 12, // Ou o tamanho de fonte adequado
+  font: font,
+  color: rgb(0, 0, 0),
+});
+
+// Desenhe o código identificador
+firstPage.drawText(codIndent, {
+  x: 50, // Substitua pelo valor x correto
+  y: 30, // Substitua pelo valor y correto, logo abaixo do texto de verificação
+  size: 12, // Ou o tamanho de fonte adequado
+  font: font,
+  color: rgb(0, 0, 0),
+});
 
   // Adiciona os textos ao certificado
   firstPage.drawText(nomeCompleto, {
