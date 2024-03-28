@@ -371,10 +371,10 @@ app.get('/api/validar-certificado/:codIndent', async (req, res) => {
   const { codIndent } = req.params;
 
   try {
-    // Substitua 'your_table' pelo nome da sua tabela de histórico
     const result = await pool.query('SELECT * FROM historico WHERE cod_indent = $1', [codIndent]);
     if (result.rows.length > 0) {
-      res.json({ isValid: true });
+      const dataConclusao = result.rows[0].data_conclusao; // Ou o nome da coluna que contém a data de conclusão
+      res.json({ isValid: true, dataConclusao: dataConclusao });
     } else {
       res.json({ isValid: false });
     }
