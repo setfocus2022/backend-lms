@@ -309,24 +309,32 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
 // Dentro da função que gera o PDF do certificado:
 const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
 
-// Desenhe o texto de verificação
+// Aumentar o tamanho da fonte para o texto de verificação e código identificador
+const verificationFontSize = 14;
+const codeIndentFontSize = 14;
+
+// Mudar a posição y mais para cima na página
+// Você pode precisar ajustar esses valores para atender ao layout do seu certificado
+const verificationTextYPos = 100; // posição y para o texto de verificação
+const codeIndentYPos = 80; // posição y para o código identificador
+
+// Desenhar o texto de verificação
 firstPage.drawText(verificationText, {
-  x: 50, // Substitua pelo valor x correto
-  y: 50, // Substitua pelo valor y correto
-  size: 12, // Ou o tamanho de fonte adequado
+  x: 50, // Você pode ajustar o valor de x se necessário
+  y: verificationTextYPos, // Posição y mais para cima
+  size: verificationFontSize, // Tamanho da fonte aumentado
   font: font,
   color: rgb(0, 0, 0),
 });
 
-// Desenhe o código identificador
+// Desenhar o código identificador
 firstPage.drawText(codIndent, {
-  x: 50, // Substitua pelo valor x correto
-  y: 30, // Substitua pelo valor y correto, logo abaixo do texto de verificação
-  size: 12, // Ou o tamanho de fonte adequado
+  x: 50, // Você pode ajustar o valor de x se necessário
+  y: codeIndentYPos, // Posição y logo abaixo do texto de verificação
+  size: codeIndentFontSize, // Tamanho da fonte aumentado
   font: font,
   color: rgb(0, 0, 0),
 });
-
   // Adiciona os textos ao certificado
   firstPage.drawText(nomeCompleto, {
     x: 705.5,
@@ -420,24 +428,32 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
 
   
   const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
+// Aumentar o tamanho da fonte para o texto de verificação e código identificador
+const verificationFontSize = 14;
+const codeIndentFontSize = 14;
 
-  // Desenhe o texto de verificação
-  firstPage.drawText(verificationText, {
-    x: 50, // Substitua pelo valor x correto
-    y: 50, // Substitua pelo valor y correto
-    size: 12, // Ou o tamanho de fonte adequado
-    font: font,
-    color: rgb(0, 0, 0),
-  });
-  
-  // Desenhe o código identificador
-  firstPage.drawText(codIndent, {
-    x: 50, // Substitua pelo valor x correto
-    y: 30, // Substitua pelo valor y correto, logo abaixo do texto de verificação
-    size: 12, // Ou o tamanho de fonte adequado
-    font: font,
-    color: rgb(0, 0, 0),
-  });
+// Mudar a posição y mais para cima na página
+// Você pode precisar ajustar esses valores para atender ao layout do seu certificado
+const verificationTextYPos = 100; // posição y para o texto de verificação
+const codeIndentYPos = 80; // posição y para o código identificador
+
+// Desenhar o texto de verificação
+firstPage.drawText(verificationText, {
+  x: 50, // Você pode ajustar o valor de x se necessário
+  y: verificationTextYPos, // Posição y mais para cima
+  size: verificationFontSize, // Tamanho da fonte aumentado
+  font: font,
+  color: rgb(0, 0, 0),
+});
+
+// Desenhar o código identificador
+firstPage.drawText(codIndent, {
+  x: 50, // Você pode ajustar o valor de x se necessário
+  y: codeIndentYPos, // Posição y logo abaixo do texto de verificação
+  size: codeIndentFontSize, // Tamanho da fonte aumentado
+  font: font,
+  color: rgb(0, 0, 0),
+});
   firstPage.drawText(nomeCompleto, {
     x: 705.5,
     y: 1175.0,
