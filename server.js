@@ -390,7 +390,8 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   // Busca a data de conclusão do curso
   const progressoQuery = 'SELECT time_certificado FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
 
-  const progressoResult = await pool.query(progressoQuery, [username, cursoId]);
+  const progressoResult = await pool.query(progressoQuery, [userId, cursoId]);
+
   if (progressoResult.rows.length === 0) {
     return res.status(404).send('Progresso do curso não encontrado');
   }
