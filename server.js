@@ -363,22 +363,22 @@ firstPage.drawText(codIndent, {
 app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const { username, cursoId } = req.params;
 
-  // Busca o nome e sobrenome do usuário
-  const userQuery = 'SELECT nome, sobrenome FROM users WHERE username = $1';
+  // Busca o ID do usuário e o nome completo a partir do username
+  const userQuery = 'SELECT id, nome, sobrenome FROM users WHERE username = $1';
   const userResult = await pool.query(userQuery, [username]);
   if (userResult.rows.length === 0) {
     return res.status(404).send('Usuário não encontrado');
   }
-  const userData = userResult.rows[0];
-  const nomeCompleto = `${userData.nome} ${userData.sobrenome}`;
+  const userId = userResult.rows[0].id; // Aqui você tem o userId
+  const nomeCompleto = `${userResult.rows[0].nome} ${userResult.rows[0].sobrenome}`;
 
+  // Busca o código identificador do certificado
   const codIndentResult = await pool.query('SELECT cod_indent FROM historico WHERE user_id = $1 AND curso_id = $2', [userId, cursoId]);
-
   if (codIndentResult.rows.length === 0) {
     return res.status(404).send('Código identificador não encontrado.');
   }
-
-const codIndent = codIndentResult.rows[0].cod_indent;
+  const codIndent = codIndentResult.rows[0].cod_indent;
+  
   // Busca os detalhes do curso
   const cursoQuery = 'SELECT nome FROM cursos WHERE id = $1';
   const cursoResult = await pool.query(cursoQuery, [cursoId]);
