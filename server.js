@@ -310,8 +310,8 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
 const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
 
 // Aumentar o tamanho da fonte para o texto de verificação e código identificador
-const verificationFontSize = 14;
-const codeIndentFontSize = 14;
+const verificationFontSize = 18;
+const codeIndentFontSize = 18;
 
 // Mudar a posição y mais para cima na página
 // Você pode precisar ajustar esses valores para atender ao layout do seu certificado
