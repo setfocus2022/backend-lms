@@ -307,7 +307,7 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
   const firstPage = pdfDoc.getPages()[0];
   const fontSize = 60;
 // Dentro da função que gera o PDF do certificado:
-const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
+const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.connectfam.com.br/usuario/certificados';
 
 // Aumentar o tamanho da fonte para o texto de verificação e código identificador
 const verificationFontSize = 18;
@@ -443,7 +443,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const fontSize = 60;
 
   
-  const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://ww.connectfam.com.br/usuario/certificados';
+  const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.connectfam.com.br/usuario/certificados';
 // Aumentar o tamanho da fonte para o texto de verificação e código identificador
 const verificationFontSize = 18;
 const codeIndentFontSize = 18;
