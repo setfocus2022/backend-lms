@@ -29,7 +29,7 @@ app.use(express.json());
 const mercadopago = require("mercadopago");
 // APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142
 mercadopago.configure({
-  access_token: "APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142",
+  access_token: "TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751",
 });
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
@@ -542,7 +542,7 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
 app.get('/api/financeiro/lucro-total', async (req, res) => {
   try {
     const query = `
-      SELECT h.periodo, c.valor_15d, c.valor_30d, c.valor_6m
+      SELECT h.periodo, c.valor_10d, c.valor_30d, c.valor_6m
       FROM historico h
       JOIN cursos c ON h.curso_id = c.id
       WHERE h.status = 'aprovado'
@@ -552,8 +552,8 @@ app.get('/api/financeiro/lucro-total', async (req, res) => {
     let totalLucro = 0;
     rows.forEach(row => {
       switch (row.periodo) {
-        case '15d':
-          totalLucro += parseFloat(row.valor_15d);
+        case '10d':
+          totalLucro += parseFloat(row.valor_10d);
           break;
         case '30d':
           totalLucro += parseFloat(row.valor_30d);
@@ -898,8 +898,8 @@ app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
 
       // Definindo o intervalo de acordo com o período do curso
       switch (cursoRows.rows[0].periodo) {
-        case '15d':
-          intervalo = '15 days';
+        case '10d':
+          intervalo = '10 days';
           break;
         case '30d':
           intervalo = '30 days';
@@ -995,7 +995,7 @@ app.get('/api/verificar-acesso/:userId/:cursoId', async (req, res) => {
 
 app.get('/api/cursos', async (req, res) => {
   try {
-    const query = 'SELECT id, nome, descricao, thumbnail, valor_15d, valor_30d, valor_6m FROM cursos';
+    const query = 'SELECT id, nome, descricao, thumbnail, valor_10d, valor_30d, valor_6m FROM cursos';
     const client = await pool.connect();
     const { rows } = await client.query(query);
     client.release();
