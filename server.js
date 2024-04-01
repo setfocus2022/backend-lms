@@ -741,11 +741,11 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
       if (newStatus === 'aprovado') {
         await pool.query(`
-          INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao) 
-          VALUES ($1, $2, (SELECT curso_id FROM compras_cursos WHERE id = $1), $3, $4, NOW()) 
-          ON CONFLICT (compra_id) 
-          DO UPDATE SET status = $3, data_aprovacao = NOW();
-        `, [compraId, userId, newStatus, dataCompra]);
+        INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao, periodo, valor_pago) 
+        VALUES ($1, $2, (SELECT curso_id FROM compras_cursos WHERE id = $1), $3, $4, NOW(), $5, $6) 
+        ON CONFLICT (compra_id) 
+        DO UPDATE SET status = $3, data_aprovacao = NOW(), periodo = $5, valor_pago = $6;
+      `, [compraId, userId, newStatus, dataCompra, '10d', /* valor_pago */]);
       }
     }));
 
