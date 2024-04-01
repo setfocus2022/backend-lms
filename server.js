@@ -186,9 +186,9 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   const userId = req.user.userId; // Usando o userId do token
 
   try {
-    // Verifica se o curso pode ser excluído (acessos_pos_conclusao >= 3)
+    
     const progressoResult = await pool.query(
-      'SELECT 1 FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 3',
+      'SELECT 1 FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2 AND acessos_pos_conclusao >= 2',
       [userId, cursoId]
     );
 
