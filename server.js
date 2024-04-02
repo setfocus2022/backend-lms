@@ -719,7 +719,6 @@ const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompr
   }
 };
 
-// Endpoint que recebe notificações de pagamento
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
@@ -733,19 +732,32 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
       const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
 
       // Buscar userId e data_compra associado a compraId
-      const compraInfo = await pool.query('SELECT user_id, created_at FROM compras_cursos WHERE id = $1', [compraId]);
+      const compraInfo = await pool.query('SELECT user_id, created_at, curso_id FROM compras_cursos WHERE id = $1', [compraId]);
       const userId = compraInfo.rows[0].user_id;
       const dataCompra = compraInfo.rows[0].created_at;
+      const cursoId = compraInfo.rows[0].curso_id; // Obter o cursoId
 
       await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
 
       if (newStatus === 'aprovado') {
+        // Buscar valor_pago da tabela cursos
+        const valorPagoResult = await pool.query('SELECT valor_10d FROM cursos WHERE id = $1', [cursoId]);
+        const valorPago = valorPagoResult.rows[0].valor_10d;
+
+        // Imprimir valores para depuração
+        console.log('compraId:', compraId);
+        console.log('userId:', userId);
+        console.log('newStatus:', newStatus);
+        console.log('dataCompra:', dataCompra);
+        console.log('periodo:', '10d');
+        console.log('valorPago:', valorPago);
+
         await pool.query(`
-        INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao, periodo, valor_pago) 
-        VALUES ($1, $2, (SELECT curso_id FROM compras_cursos WHERE id = $1), $3, $4, NOW(), $5, $6) 
-        ON CONFLICT (compra_id) 
-        DO UPDATE SET status = $3, data_aprovacao = NOW(), periodo = $5, valor_pago = $6;
-      `, [compraId, userId, newStatus, dataCompra, '10d', valorPago]);
+          INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao, periodo, valor_pago) 
+          VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) 
+          ON CONFLICT (compra_id) 
+          DO UPDATE SET status = $4, data_aprovacao = NOW(), periodo = $6, valor_pago = $7;
+        `, [compraId, userId, cursoId, newStatus, dataCompra, '10d', valorPago]);
       }
     }));
 
