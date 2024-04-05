@@ -16,7 +16,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000','https://b9ff-187-109-132-62.ngrok-free.app' ,'https://quaint-tank-top.cyclic.app/', 'https://connect-ead.vercel.app' , 'https://www.connectfam.com.br'],
+  origin: ['http://localhost:3000','https://b9ff-187-109-132-62.ngrok-free.app' ,'https://quaint-tank-top.cyclic.app/', 'www.fmatch.com.br', 'https://connect-ead.vercel.app' , 'https://www.connectfam.com.br'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -118,14 +118,14 @@ const transporter = nodemailer.createTransport({
     port: 587,
     secure: false, // true for 465, false for other ports como 587 com TLS
     auth: {
-        user: 'suport.connecteadfam@outlook.com',
-        pass: '@Desenho1977',
+        user: 'suporte.fmatch@outlook.com',
+        pass: '@Desenho1977##',
     },
 });
 
 const sendVerificationCode = async (email, code) => {
     const mailOptions = {
-        from: 'suport.connecteadfam@outlook.com', // endereço do remetente
+        from: 'suporte.fmatch@outlook.com', // endereço do remetente
         to: email, // endereço do destinatário
         subject: 'Código de Verificação',
         text: `Seu código de verificação é: ${code}`,
@@ -307,7 +307,7 @@ app.get('/api/generate-historico-certificado/:userId/:cursoId', async (req, res)
   const firstPage = pdfDoc.getPages()[0];
   const fontSize = 60;
 // Dentro da função que gera o PDF do certificado:
-const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.connectfam.com.br/usuario/certificados';
+const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.FMATCH.com.br/usuario/certificados';
 
 // Aumentar o tamanho da fonte para o texto de verificação e código identificador
 const verificationFontSize = 18;
@@ -443,7 +443,7 @@ app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
   const fontSize = 60;
 
   
-  const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.connectfam.com.br/usuario/certificados';
+  const verificationText = 'Para verificar a autenticidade deste certificado acesse a página: https://www.FMATCH.com.br/usuario/certificados';
 // Aumentar o tamanho da fonte para o texto de verificação e código identificador
 const verificationFontSize = 18;
 const codeIndentFontSize = 18;
@@ -705,7 +705,7 @@ const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompr
   `;
 
   const mailOptions = {
-    from: 'suport.connecteadfam@outlook.com',
+    from: 'suporte.fmatch@outlook.com',
     to: email,
     subject: 'Detalhes da sua compra',
     html: htmlContent,
