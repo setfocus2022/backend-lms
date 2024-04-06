@@ -27,9 +27,9 @@ app.use('/pdf', express.static('pdfs'));
 app.use(express.json());
 
 const mercadopago = require("mercadopago");
-// APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142 - TEST-2963469360015665-021322-f1fffd21061a732ce2e6e9acb4968e84-266333751
+// APP_USR-c69aa752-f09b-4f75-8c6d-71d04cbada02 - TEST-3e601a2e-427d-423b-9f4e-6ab4729899d1
 mercadopago.configure({
-  access_token: "APP_USR-2673812216765264-031114-a69e4c85034c3a07e1fdcfd5d3e0f4bf-720387142",
+  access_token: "APP_USR-c69aa752-f09b-4f75-8c6d-71d04cbada02",
 });
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
