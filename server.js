@@ -29,7 +29,7 @@ app.use(express.json());
 const mercadopago = require("mercadopago");
 // APP_USR-c69aa752-f09b-4f75-8c6d-71d04cbada02 - TEST-3e601a2e-427d-423b-9f4e-6ab4729899d1
 mercadopago.configure({
-  access_token: "APP_USR-c69aa752-f09b-4f75-8c6d-71d04cbada02",
+  access_token: "TEST-3e601a2e-427d-423b-9f4e-6ab4729899d1",
 });
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
