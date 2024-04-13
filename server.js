@@ -1458,13 +1458,14 @@ app.post('/api/cursos/:cursoId/verificarAvaliacao', async (req, res) => {
   try {
     const avaliacoes = await pool.query('SELECT * FROM avaliacoes WHERE curso_id = $1', [cursoId]);
     let pontuacao = 0;
-    let respostasCorretas = {}; // Objeto para armazenar as respostas corretas
+    let respostasCorretas = {};
 
     avaliacoes.rows.forEach(avaliacao => {
-      if (respostasUsuario[avaliacao.id] === avaliacao.resposta_correta) {
+      const perguntaId = parseInt(avaliacao.id, 10); // Converte o ID da pergunta para inteiro
+      if (respostasUsuario[`pergunta-${perguntaId}`] === avaliacao.resposta_correta) {
         pontuacao += 1;
       }
-      respostasCorretas[avaliacao.id] = avaliacao.resposta_correta; // Adiciona a resposta correta ao objeto
+      respostasCorretas[perguntaId] = avaliacao.resposta_correta;
     });
 
     res.json({ pontuacao, total: avaliacoes.rows.length, respostasCorretas });
