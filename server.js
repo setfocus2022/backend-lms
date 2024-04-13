@@ -1453,23 +1453,25 @@ app.get('/api/cursos/:cursoId/avaliacoes', async (req, res) => {
 
 app.post('/api/cursos/:cursoId/verificarAvaliacao', async (req, res) => {
   const { cursoId } = req.params;
-  const { respostasUsuario } = req.body; // Espera um objeto { idPergunta: 'resposta' }
+  const { respostasUsuario } = req.body; 
 
   try {
     const avaliacoes = await pool.query('SELECT * FROM avaliacoes WHERE curso_id = $1', [cursoId]);
     let pontuacao = 0;
+    let respostasCorretas = {}; // Objeto para armazenar as respostas corretas
+
     avaliacoes.rows.forEach(avaliacao => {
       if (respostasUsuario[avaliacao.id] === avaliacao.resposta_correta) {
         pontuacao += 1;
       }
+      respostasCorretas[avaliacao.id] = avaliacao.resposta_correta; // Adiciona a resposta correta ao objeto
     });
 
-    res.json({ pontuacao, total: avaliacoes.rows.length });
+    res.json({ pontuacao, total: avaliacoes.rows.length, respostasCorretas });
   } catch (err) {
     res.status(500).send('Erro no servidor');
   }
 });
-
 
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
