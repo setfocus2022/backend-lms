@@ -504,15 +504,23 @@ firstPage.drawText(codIndent, {
 });
 
 app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
+  const mes = parseInt(req.query.mes);
+
+  if (!mes || mes < 1 || mes > 12) {
+    return res.status(400).json({ message: 'Mês inválido. Deve ser um número entre 1 e 12.' });
+  }
+
   try {
     const query = `
       SELECT c.nome, h.status_progresso as status, COUNT(*) as quantidade
       FROM historico h
       JOIN cursos c ON h.curso_id = c.id
-      WHERE h.status_progresso IN ('iniciado', 'concluido')
+      WHERE h.status_progresso IN ('iniciado', 'concluido') 
+        AND EXTRACT(MONTH FROM h.data_conclusao) = $1 // Ou outra data relevante
       GROUP BY c.nome, h.status_progresso
     `;
-    const { rows } = await pool.query(query);
+    const values = [mes];
+    const { rows } = await pool.query(query, values);
     res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar cursos iniciados e concluídos:', error);
@@ -520,17 +528,23 @@ app.get('/api/cursos/iniciados-concluidos', async (req, res) => {
   }
 });
 
-
 app.get('/api/vendas/estatisticas', async (req, res) => {
+  const mes = parseInt(req.query.mes);
+
+  if (!mes || mes < 1 || mes > 12) {
+    return res.status(400).json({ message: 'Mês inválido. Deve ser um número entre 1 e 12.' });
+  }
+
   try {
     const query = `
       SELECT c.nome, COUNT(*) as quantidade
       FROM historico h
       JOIN cursos c ON h.curso_id = c.id
-      WHERE h.status = 'aprovado'
+      WHERE h.status = 'aprovado' AND EXTRACT(MONTH FROM h.data_aprovacao) = $1
       GROUP BY c.nome
     `;
-    const { rows } = await pool.query(query);
+    const values = [mes];
+    const { rows } = await pool.query(query, values);
     res.json(rows);
   } catch (error) {
     console.error('Erro ao buscar estatísticas de vendas:', error);
