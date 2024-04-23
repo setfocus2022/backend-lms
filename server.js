@@ -215,7 +215,7 @@ function generateUniqueId() {
   return uuidv4(); // Isso irá gerar um UUID v4 único
 }
 
-app.post('/api/cursos/concluir', async (req, res) => {
+app.post('/api/cursos/concluir', authenticateToken,  async (req, res) => {
   const { userId, cursoId } = req.body;
 
   try {
@@ -384,7 +384,7 @@ app.get('/api/validar-certificado/:codIndent', async (req, res) => {
   }
 });
 
-app.get('/api/certificado-concluido/:username/:cursoId', async (req, res) => {
+app.get('/api/certificado-concluido/:username/:cursoId', authenticateToken, async (req, res) => {
   const { username, cursoId } = req.params;
 
   // Busca o ID do usuário e o nome completo a partir do username
