@@ -818,7 +818,7 @@ app.post('/login', async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.acesso, instituicaoNome: user.instituicaonome },
       jwtSecret,
-      { expiresIn: '12h' }
+      { expiresIn: '10h' }
     );
 
     if (!token) {
@@ -1196,11 +1196,11 @@ app.post("/api/user/login", async (req, res) => {
     if (results.rows.length > 0) {
       const user = results.rows[0];
 
-      // Compara a senha fornecida com a hash armazenada
+      // Compara a senha usando bcrypt.compare
       const senhaValida = await bcrypt.compare(senha, user.senha);
+
       if (senhaValida) {
         const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '1h' });
-
 
         res.json({
           success: true,
