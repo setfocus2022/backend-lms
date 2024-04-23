@@ -1200,7 +1200,7 @@ app.post("/api/user/login", async (req, res) => {
       const senhaValida = await bcrypt.compare(senha, user.senha);
 
       if (senhaValida) {
-        const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
 
         res.json({
           success: true,
