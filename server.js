@@ -540,14 +540,21 @@ app.get('/api/vendas/estatisticas', async (req, res) => {
 
 
 app.get('/api/financeiro/lucro-total', async (req, res) => {
+  const mes = parseInt(req.query.mes); // Obter o mês da query string
+
+  if (!mes || mes < 1 || mes > 12) {
+    return res.status(400).json({ message: 'Mês inválido. Deve ser um número entre 1 e 12.' });
+  }
+
   try {
     const query = `
-      SELECT h.periodo, c.valor_10d, c.valor_30d, c.valor_6m
+      SELECT h.periodo, c.valor_10d, c.valor_30d, c.valor_6m, h.data_aprovacao
       FROM historico h
       JOIN cursos c ON h.curso_id = c.id
-      WHERE h.status = 'aprovado'
+      WHERE h.status = 'aprovado' AND EXTRACT(MONTH FROM h.data_aprovacao) = $1
     `;
-    const { rows } = await pool.query(query);
+    const values = [mes];
+    const { rows } = await pool.query(query, values);
 
     let totalLucro = 0;
     rows.forEach(row => {
@@ -570,7 +577,6 @@ app.get('/api/financeiro/lucro-total', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-
 
 
 app.get('/api/generate-pdf/:username/:cursoId', async (req, res) => {
