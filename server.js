@@ -880,41 +880,43 @@ app.post('/login', async (req, res) => {
   }
 });
 app.put('/api/user/profileEdit', async (req, res) => {
-  const { userId, nome, sobrenome, email, endereco, cidade, cep, pais, role, username, empresa } = req.body; // Inclua "empresa" nos dados do corpo da requisição
+  const { userId, nome, sobrenome, email, endereco, cidade, cep, pais, role, username, empresa } = req.body;
 
   if (!userId) {
-      return res.status(400).json({ success: false, message: 'ID de usuário não fornecido.' });
+    return res.status(400).json({ success: false, message: 'ID de usuário não fornecido.' });
   }
 
   try {
-      const client = await pool.connect();
+    const client = await pool.connect();
 
-      const query = `
-          UPDATE users
-          SET
-              nome = $1,
-              sobrenome = $2,
-              email = $3,
-              endereco = $4,
-              cidade = $5,
-              cep = $6,
-              pais = $7,
-              role = $8,
-              username = $9
-          WHERE id = $10
-      `;
-      const values = [nome, sobrenome, email, endereco, cidade, cep, pais, role, username, userId];
+    const query = `
+      UPDATE users
+      SET
+        nome = $1,
+        sobrenome = $2,
+        email = $3,
+        endereco = $4,
+        cidade = $5,
+        cep = $6,
+        pais = $7,
+        role = $8,
+        username = $9,
+        empresa = $10
+      WHERE id = $11
+    `;
+    const values = [nome, sobrenome, email, endereco, cidade, cep, pais, role, username, empresa, userId];
 
-      await client.query(query, values);
+    await client.query(query, values);
 
-      client.release();
+    client.release();
 
-      res.json({ success: true, message: 'Perfil atualizado com sucesso!' });
+    res.json({ success: true, message: 'Perfil atualizado com sucesso!' });
   } catch (error) {
-      console.error('Erro ao atualizar perfil do usuário:', error);
-      res.status(500).json({ success: false, message: 'Erro interno do servidor ao atualizar perfil.' });
+    console.error('Erro ao atualizar perfil do usuário:', error);
+    res.status(500).json({ success: false, message: 'Erro interno do servidor ao atualizar perfil.' });
   }
 });
+
 app.delete('/api/delete-aluno/:userId', async (req, res) => {
   const { userId } = req.params;
 
