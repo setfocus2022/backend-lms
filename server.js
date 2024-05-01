@@ -1130,7 +1130,7 @@ app.get('/api/cursos/count', async (req, res) => {
 });
 app.get("/alunos", async (req, res) => {
   try {
-    const query = "SELECT  id, nome, sobrenome, email, endereco, cidade, cep, pais, role, username FROM Users WHERE role = $1";
+    const query = "SELECT  empresa, id, nome, sobrenome, email, endereco, cidade, cep, pais, role, username FROM Users WHERE role = $1";
     const client = await pool.connect();
     const results = await client.query(query, ['Aluno']);
     client.release();
