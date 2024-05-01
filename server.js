@@ -1261,18 +1261,18 @@ app.post('/api/comprar-curso', async (req, res) => {
 });
 
 app.post('/api/add-aluno', async (req, res) => {
-  const { username, nome, sobrenome, email, role, empresa } = req.body; // Inclua "empresa" nos dados do corpo da requisição
+  const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
+
+  // Gere um hash da senha usando a biblioteca bcrypt
+  const saltRounds = 10; // Custo de computação para gerar o hash
+  const hashedPassword = await bcrypt.hash(senha, saltRounds);
+
+  // Query para inserir o novo aluno no banco de dados
+  const query = 'INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha) VALUES ($1, $2, $3, $4, $5, $6, $7)';
+  const values = [username, nome, sobrenome, email, role, empresa, hashedPassword];
 
   try {
-    const senhaPadrao = 'senha_padrao'; // Pode definir uma senha padrão ou gerar aleatoriamente
-
-    const query = 'INSERT INTO users (username, nome, sobrenome, email, role, senha) VALUES ($1, $2, $3, $4, $5, $6)';
-    const values = [username, nome, sobrenome, email, role, senhaPadrao]; // Incluímos a senha aqui
-
-    const client = await pool.connect();
-    await client.query(query, values);
-    client.release();
-
+    await pool.query(query, values);
     res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
   } catch (error) {
     console.error('Erro ao adicionar aluno:', error);
