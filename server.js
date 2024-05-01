@@ -792,20 +792,37 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
 
 
 app.post('/api/add-aluno', async (req, res) => {
-  const { nome, sobrenome, email, senha, username, role } = req.body; // Incluído username
+  const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
 
   try {
-    const senhaHash = await bcrypt.hash(senha, 10);
-    const query = 'INSERT INTO users (nome, sobrenome, email, senha, username, role) VALUES ($1, $2, $3, $4, $5, $6)'; // Adicionado username na query
-    const values = [nome, sobrenome, email, senhaHash, username, role]; // Adicionado username nos valores
-    await pool.query(query, values);
+      // 1. Gere um hash da senha usando bcrypt
+      const saltRounds = 10; 
+      const hashedPassword = await bcrypt.hash(senha, saltRounds);
 
-    res.json({ success: true, message: 'Usuário criado com sucesso.' });
+      // 2. Conecte-se ao banco de dados PostgreSQL
+      const client = await pool.connect();
+
+      // 3. Execute a consulta SQL para inserir o novo aluno
+      const query = `
+          INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `;
+      const values = [username, nome, sobrenome, email, role, empresa, hashedPassword];
+
+      await client.query(query, values);
+
+      // 4. Envie a resposta de sucesso
+      res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
+
   } catch (error) {
-    console.error('Erro ao adicionar aluno:', error);
-    res.status(500).json({ success: false, message: 'Erro ao criar usuário.' });
+      console.error('Erro ao adicionar aluno:', error);
+      res.status(500).json({ success: false, message: 'Erro ao adicionar aluno' });
+  } finally {
+      // 5. Libere a conexão com o banco de dados
+      client.release();
   }
 });
+
 
 const getAulasPorCursoId = async (cursoId) => {
   const query = 'SELECT * FROM aulas WHERE curso_id = $1';
@@ -1264,10 +1281,10 @@ app.post('/api/add-aluno', async (req, res) => {
   const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
 
   // Gere um hash da senha usando a biblioteca bcrypt
-  const saltRounds = 10; // Custo de computação para gerar o hash
+  const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(senha, saltRounds);
 
-  // Query para inserir o novo aluno no banco de dados
+  // Query para inserir o novo aluno no banco de dados (incluindo "empresa")
   const query = 'INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha) VALUES ($1, $2, $3, $4, $5, $6, $7)';
   const values = [username, nome, sobrenome, email, role, empresa, hashedPassword];
 
