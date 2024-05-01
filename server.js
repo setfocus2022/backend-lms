@@ -863,7 +863,7 @@ app.post('/login', async (req, res) => {
   }
 });
 app.put('/api/user/profileEdit', async (req, res) => {
-  const { userId, nome, sobrenome, email, endereco, cidade, cep, pais, role, username } = req.body;
+  const { userId, nome, sobrenome, email, endereco, cidade, cep, pais, role, username, empresa } = req.body; // Inclua "empresa" nos dados do corpo da requisição
 
   if (!userId) {
       return res.status(400).json({ success: false, message: 'ID de usuário não fornecido.' });
@@ -1261,7 +1261,7 @@ app.post('/api/comprar-curso', async (req, res) => {
 });
 
 app.post('/api/add-aluno', async (req, res) => {
-  const { username, nome, sobrenome, email, role } = req.body;
+  const { username, nome, sobrenome, email, role, empresa } = req.body; // Inclua "empresa" nos dados do corpo da requisição
 
   try {
     const senhaPadrao = 'senha_padrao'; // Pode definir uma senha padrão ou gerar aleatoriamente
