@@ -920,6 +920,31 @@ app.put('/api/user/profileEdit', async (req, res) => {
   }
 });
 
+app.post('/api/empresas', async (req, res) => {
+  const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha } = req.body;
+
+  try {
+    // Gere um hash da senha usando bcrypt
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(senha, saltRounds);
+
+    const client = await pool.connect();
+    const query = `
+      INSERT INTO empresas (cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `;
+    const values = [cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, hashedPassword];
+
+    await client.query(query, values);
+    client.release();
+
+    res.json({ success: true, message: 'Empresa cadastrada com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao cadastrar empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao cadastrar empresa' });
+  }
+});
+
 app.delete('/api/delete-aluno/:userId', async (req, res) => {
   const { userId } = req.params;
 
