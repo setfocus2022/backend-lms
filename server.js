@@ -1243,8 +1243,6 @@ app.get('/api/validateToken', authenticateToken, (req, res) => {
   });
 });
 
-
-
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
 
@@ -1252,24 +1250,20 @@ app.post("/api/user/login", async (req, res) => {
     return res.status(400).json({ success: false, message: 'Dados incompletos.' });
   }
 
-  // Tenta encontrar o usuário pelo e-mail ou username
-  const query = "SELECT * FROM users WHERE email = $1 OR username = $1";
-
   try {
+    // 1. Verificar na tabela 'users'
+    const userQuery = "SELECT * FROM users WHERE email = $1 OR username = $1";
     const client = await pool.connect();
-    const results = await client.query(query, [Email]);
-    client.release();
+    const userResults = await client.query(userQuery, [Email]);
 
-    if (results.rows.length > 0) {
-      const user = results.rows[0];
-
-      // Compara a senha usando bcrypt.compare
+    if (userResults.rows.length > 0) {
+      const user = userResults.rows[0];
       const senhaValida = await bcrypt.compare(senha, user.senha);
 
       if (senhaValida) {
+        // Login bem-sucedido como usuário normal
         const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
-
-        res.json({
+        return res.json({
           success: true,
           message: 'Login bem-sucedido!',
           token: token,
@@ -1277,18 +1271,40 @@ app.post("/api/user/login", async (req, res) => {
           userId: user.id,
           role: user.role
         });
-      } else {
-        res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
       }
-    } else {
-      res.status(401).json({ success: false, message: 'Usuário não encontrado.' });
     }
+
+    // 2. Verificar na tabela 'empresas'
+    const empresaQuery = "SELECT * FROM empresas WHERE email = $1";
+    const empresaResults = await client.query(empresaQuery, [Email]);
+
+    if (empresaResults.rows.length > 0) {
+      const empresa = empresaResults.rows[0];
+      const senhaValida = await bcrypt.compare(senha, empresa.senha);
+
+      if (senhaValida) {
+        // Login bem-sucedido como empresa (Admin)
+        const token = jwt.sign({ userId: empresa.id, role: 'Admin', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
+        return res.json({
+          success: true,
+          message: 'Login bem-sucedido!',
+          token: token,
+          username: empresa.nome, // Usando o nome da empresa como username
+          userId: empresa.id,
+          role: 'Admin' // Definindo a role como 'Admin'
+        });
+      }
+    }
+
+    client.release();
+
+    // 3. Se nenhum login for bem-sucedido
+    res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 
 app.post('/api/comprar-curso', async (req, res) => {
