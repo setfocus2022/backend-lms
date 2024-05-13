@@ -902,7 +902,7 @@ app.put('/api/user/profileEdit', async (req, res) => {
         pais = $7,
         role = $8,
         username = $9,
-        empresa = $10 // Adicionando empresa aqui
+        empresa = $10
       WHERE id = $11
     `;
 
