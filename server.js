@@ -889,6 +889,7 @@ app.put('/api/user/profileEdit', async (req, res) => {
   try {
     const client = await pool.connect();
 
+    // Adicionar 'empresa' à query SQL
     const query = `
       UPDATE users
       SET
@@ -901,9 +902,11 @@ app.put('/api/user/profileEdit', async (req, res) => {
         pais = $7,
         role = $8,
         username = $9,
-        empresa = $10
+        empresa = $10 // Adicionando empresa aqui
       WHERE id = $11
     `;
+
+    // Adicionar 'empresa' aos valores
     const values = [nome, sobrenome, email, endereco, cidade, cep, pais, role, username, empresa, userId];
 
     await client.query(query, values);
