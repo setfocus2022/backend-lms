@@ -920,6 +920,26 @@ app.put('/api/user/profileEdit', async (req, res) => {
   }
 });
 
+app.get('/api/empresas/:empresaId', authenticateToken, async (req, res) => {
+  const empresaId = req.params.empresaId;
+
+  try {
+    const query = 'SELECT * FROM empresas WHERE id = $1';
+    const client = await pool.connect();
+    const { rows } = await client.query(query, [empresaId]);
+    client.release();
+
+    if (rows.length > 0) {
+      res.json({ success: true, empresa: rows[0] });
+    } else {
+      res.status(404).json({ success: false, message: 'Empresa não encontrada' });
+    }
+  } catch (error) {
+    console.error('Erro ao buscar dados da empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar dados da empresa' });
+  }
+});
+
 app.post('/api/empresas', async (req, res) => {
   const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha } = req.body;
 
