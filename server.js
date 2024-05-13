@@ -940,6 +940,45 @@ app.get('/api/empresas/:empresaId', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/empresas/:empresaId/alunos/count', authenticateToken, async (req, res) => {
+  const empresaId = req.params.empresaId;
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query("SELECT COUNT(*) FROM users WHERE empresa = $1 AND role = 'Aluno'", [empresaId]);
+    client.release();
+    res.json({ success: true, count: parseInt(rows[0].count, 10) });
+  } catch (error) {
+    console.error("Erro ao contar alunos da empresa:", error);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
+});
+
+// Rota para contar alunos da empresa que mudaram a senha
+app.get('/api/empresas/:empresaId/alunos/password-changed/count', authenticateToken, async (req, res) => {
+  const empresaId = req.params.empresaId;
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query("SELECT COUNT(*) FROM users WHERE empresa = $1 AND role = 'Aluno' AND senha != 'senha_padrao'", [empresaId]);
+    client.release();
+    res.json({ success: true, count: parseInt(rows[0].count, 10) });
+  } catch (error) {
+    console.error("Erro ao contar acessos de alunos da empresa:", error);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
+});
+
+// Rota para contar cursos da empresa (Você precisa definir a lógica para isso)
+app.get('/api/empresas/:empresaId/cursos/count', authenticateToken, async (req, res) => {
+  const empresaId = req.params.empresaId;
+  try {
+    // Implemente a lógica para contar os cursos da empresa aqui
+    // ...
+  } catch (error) {
+    console.error("Erro ao contar cursos da empresa:", error);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
+});
+
 app.post('/api/empresas', async (req, res) => {
   const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha } = req.body;
 
