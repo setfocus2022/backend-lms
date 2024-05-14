@@ -1284,7 +1284,7 @@ app.post("/api/user/login", async (req, res) => {
       const senhaValida = await bcrypt.compare(senha, empresa.senha);
 
       if (senhaValida) {
-        // Login bem-sucedido como empresa (Admin)
+        // Login bem-sucedido como empresa (Empresa)
         const token = jwt.sign({ userId: empresa.id, role: 'Empresa', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
         return res.json({
           success: true,
@@ -1292,7 +1292,7 @@ app.post("/api/user/login", async (req, res) => {
           token: token,
           username: empresa.nome, // Usando o nome da empresa como username
           userId: empresa.id,
-          role: 'Admin' // Definindo a role como 'Admin'
+          role: 'Empresa' // Definindo a role como 'Empresa'
         });
       }
     }
@@ -1306,7 +1306,6 @@ app.post("/api/user/login", async (req, res) => {
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
-
 
 app.post('/api/comprar-curso', async (req, res) => {
   const { userId, cursoId } = req.body;
