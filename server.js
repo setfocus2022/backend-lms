@@ -1321,6 +1321,22 @@ app.get('/api/alunos/empresa/:empresaNome/count', async (req, res) => {
   }
 });
 
+// Rota para buscar alunos de uma empresa específica
+app.get('/alunos/empresa/:empresaNome', async (req, res) => {
+  const { empresaNome } = req.params;
+  try {
+    const query = "SELECT empresa, id, nome, sobrenome, email, endereco, cidade, cep, pais, role, username FROM Users WHERE role = 'Aluno' AND empresa = $1";
+    const client = await pool.connect();
+    const results = await client.query(query, [empresaNome]);
+    client.release();
+
+    res.json(results.rows);
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 // Rota para contar alunos de uma empresa específica que mudaram a senha padrão
 app.get('/api/alunos/empresa/:empresaNome/password-changed/count', async (req, res) => {
   const { empresaNome } = req.params;
