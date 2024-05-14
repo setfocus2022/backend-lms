@@ -1307,6 +1307,34 @@ app.post("/api/user/login", async (req, res) => {
   }
 });
 
+// Rota para contar alunos de uma empresa específica
+app.get('/api/alunos/empresa/:empresaNome/count', async (req, res) => {
+  const { empresaNome } = req.params;
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query("SELECT COUNT(*) FROM users WHERE role = 'Aluno' AND empresa = $1", [empresaNome]);
+    client.release();
+    res.json({ success: true, count: parseInt(rows[0].count, 10) });
+  } catch (error) {
+    console.error("Erro ao contar alunos da empresa:", error);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
+});
+
+// Rota para contar alunos de uma empresa específica que mudaram a senha padrão
+app.get('/api/alunos/empresa/:empresaNome/password-changed/count', async (req, res) => {
+  const { empresaNome } = req.params;
+  try {
+    const client = await pool.connect();
+    const { rows } = await client.query("SELECT COUNT(*) FROM users WHERE role = 'Aluno' AND empresa = $1 AND senha != 'senha_padrao'", [empresaNome]);
+    client.release();
+    res.json({ success: true, count: parseInt(rows[0].count, 10) });
+  } catch (error) {
+    console.error("Erro ao contar acessos de alunos da empresa:", error);
+    res.status(500).json({ success: false, message: "Erro interno do servidor" });
+  }
+});
+
 app.post('/api/comprar-curso', async (req, res) => {
   const { userId, cursoId } = req.body;
   
