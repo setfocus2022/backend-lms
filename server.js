@@ -745,7 +745,7 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
           quantity: 1,
         }
       ],
-      external_reference: comprasRegistradas.flat().join('-'),
+      external_reference: comprasRegistradas.flat().join(';'),
     };
 
     const response = await mercadopago.preferences.create(preference);
