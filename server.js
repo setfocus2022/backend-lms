@@ -711,7 +711,8 @@ app.post("/api/checkout", async (req, res) => {
     res.status(500).json({ error: error.toString() });
   }
 });
-app.post("/api/checkout/pacote", async (req, res) => {
+
+app.post("/api/checkout/pacote", authenticateToken, async (req, res) => { 
   const { items, userId } = req.body;
   const empresaNome = req.user.username; // Obter o nome da empresa do token
 
