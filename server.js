@@ -712,6 +712,54 @@ app.post("/api/checkout", async (req, res) => {
   }
 });
 
+app.post("/api/checkout/pacote", async (req, res) => {
+  const { items, userId } = req.body;
+
+  try {
+    // 1. Obter os IDs dos cursos do item 'Pacote de Cursos'
+    const cursoIds = items[0].id; // 'id' agora é um array de IDs de cursos
+
+    // 2. Criar um registro de compra para cada curso
+    const comprasRegistradas = await Promise.all(cursoIds.map(async cursoId => {
+      const { rows } = await pool.query(
+        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
+        [userId, cursoId, '10d'] // Substitua '10d' pelo período correto
+      );
+      return rows[0].id;
+    }));
+
+    // 3. Criar a preferência do Mercado Pago com base no valor total do pacote
+    const preference = {
+      items: [
+        {
+          title: items[0].title,
+          unit_price: items[0].unit_price,
+          quantity: 1,
+        }
+      ],
+      external_reference: comprasRegistradas.join('-'),
+    };
+
+    const response = await mercadopago.preferences.create(preference);
+
+    // 4. Lidar com o timeout da compra
+    comprasRegistradas.forEach(compraId => {
+      setTimeout(async () => {
+        const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+        if (rows.length > 0 && rows[0].status === 'pendente') {
+          await pool.query('UPDATE compras_cursos SET status = \'Não Realizada\' WHERE id = $1', [compraId]);
+        }
+      }, 300000); // 5 minutos
+    });
+
+    // 5. Enviar a resposta
+    res.json({ preferenceId: response.body.id, comprasRegistradas });
+  } catch (error) {
+    console.error("Erro ao criar a preferência de pagamento:", error);
+    res.status(500).json({ error: error.toString() });
+  }
+});
+
 // Função para enviar email com detalhes da compra
 const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompra) => {
   const htmlContent = `
