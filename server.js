@@ -711,24 +711,31 @@ app.post("/api/checkout", async (req, res) => {
     res.status(500).json({ error: error.toString() });
   }
 });
-
 app.post("/api/checkout/pacote", async (req, res) => {
   const { items, userId } = req.body;
+  const empresaNome = req.user.username; // Obter o nome da empresa do token
 
   try {
     // 1. Obter os IDs dos cursos do item 'Pacote de Cursos'
-    const cursoIds = items[0].id; // 'id' agora é um array de IDs de cursos
+    const cursoIds = items[0].id;
 
-    // 2. Criar um registro de compra para cada curso
-    const comprasRegistradas = await Promise.all(cursoIds.map(async cursoId => {
-      const { rows } = await pool.query(
-        "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
-        [userId, cursoId, '10d'] // Substitua '10d' pelo período correto
-      );
-      return rows[0].id;
+    // 2. Obter os userIds dos alunos da empresa
+    const alunosQuery = "SELECT id FROM users WHERE empresa = $1 AND role = 'Aluno'";
+    const { rows: alunos } = await pool.query(alunosQuery, [empresaNome]);
+    const alunoIds = alunos.map(aluno => aluno.id);
+
+    // 3. Criar um registro de compra para cada aluno e cada curso
+    const comprasRegistradas = await Promise.all(alunoIds.map(async alunoId => {
+      return Promise.all(cursoIds.map(async cursoId => {
+        const { rows } = await pool.query(
+          "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
+          [alunoId, cursoId, '10d'] // Substitua '10d' pelo período correto
+        );
+        return rows[0].id;
+      }));
     }));
 
-    // 3. Criar a preferência do Mercado Pago com base no valor total do pacote
+    // 4. Criar a preferência do Mercado Pago
     const preference = {
       items: [
         {
@@ -737,12 +744,12 @@ app.post("/api/checkout/pacote", async (req, res) => {
           quantity: 1,
         }
       ],
-      external_reference: comprasRegistradas.join('-'),
+      external_reference: comprasRegistradas.flat().join('-'),
     };
 
     const response = await mercadopago.preferences.create(preference);
 
-    // 4. Lidar com o timeout da compra
+    // 5. Lidar com o timeout da compra
     comprasRegistradas.forEach(compraId => {
       setTimeout(async () => {
         const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
@@ -752,7 +759,7 @@ app.post("/api/checkout/pacote", async (req, res) => {
       }, 300000); // 5 minutos
     });
 
-    // 5. Enviar a resposta
+    // 6. Enviar a resposta
     res.json({ preferenceId: response.body.id, comprasRegistradas });
   } catch (error) {
     console.error("Erro ao criar a preferência de pagamento:", error);
