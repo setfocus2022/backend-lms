@@ -840,7 +840,40 @@ app.post("/api/pagamento/notificacao", async (req, res) => {
   }
 });
 
+app.get('/api/empresa/compras', authenticateToken, async (req, res) => {
+  const empresaNome = req.user.username;
 
+  try {
+    const query = `
+      SELECT cc.id, c.nome AS curso_nome, cc.periodo, cc.created_at AS data_compra, cc.status, u.nome AS aluno_nome
+      FROM compras_cursos cc
+      JOIN cursos c ON cc.curso_id = c.id
+      JOIN users u ON cc.user_id = u.id
+      WHERE u.empresa = $1
+      ORDER BY cc.created_at DESC
+    `;
+    const { rows: compras } = await pool.query(query, [empresaNome]);
+
+    // Formatar a data da compra
+    const comprasFormatadas = compras.map(compra => ({
+      ...compra,
+      data_compra: new Date(compra.data_compra).toLocaleString('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      })
+    }));
+
+    res.json(comprasFormatadas);
+  } catch (error) {
+    console.error('Erro ao buscar histórico de compras da empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar histórico de compras' });
+  }
+});
 
 app.post('/api/add-aluno', async (req, res) => {
   const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
