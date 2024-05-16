@@ -209,6 +209,22 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   }
 });
 
+app.delete('/api/cursos-comprados/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const query = 'DELETE FROM compras_cursos WHERE user_id = $1';
+    const client = await pool.connect();
+    await client.query(query, [userId]);
+    client.release();
+    res.json({ success: true, message: 'Cursos comprados excluídos com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao excluir cursos comprados:', error);
+    res.status(500).json({ success: false, message: 'Erro ao excluir cursos comprados' });
+  }
+});
+
+
 const { v4: uuidv4 } = require('uuid');
 
 function generateUniqueId() {
