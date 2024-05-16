@@ -1064,6 +1064,21 @@ app.get('/api/empresas', async (req, res) => {
   }
 });
 
+app.delete('/api/empresas/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const query = 'DELETE FROM empresas WHERE id = $1';
+    const client = await pool.connect();
+    await client.query(query, [id]);
+    client.release();
+    res.json({ success: true, message: 'Empresa excluída com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao excluir empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao excluir empresa' });
+  }
+});
+
 // Rota para atualizar uma empresa
 app.put('/api/empresas/:id', async (req, res) => {
   const { id } = req.params;
