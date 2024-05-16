@@ -794,51 +794,56 @@ const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompr
     console.error('Erro ao enviar email de confirmação:', error);
   }
 };
+
 app.post("/api/pagamento/notificacao", async (req, res) => {
   const { data } = req.body;
 
   try {
     const payment = await mercadopago.payment.findById(data.id);
     const externalReference = payment.body.external_reference;
-    const compraIds = externalReference.split(';'); // Separar os IDs por ponto e vírgula
+    const compraIds = externalReference.split('-');
     const paymentStatus = payment.body.status;
 
-    await Promise.all(compraIds.map(async compraIdString => {
-      // Dividir a string compraIdString em IDs individuais, caso contenha vírgulas
-      const compraIdsIndividuais = compraIdString.split(',');
-  
-      await Promise.all(compraIdsIndividuais.map(async compraId => {
-        const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
-  
-        // Buscar userId e data_compra associado a compraId
-        const compraInfo = await pool.query('SELECT user_id, created_at, curso_id FROM compras_cursos WHERE id = $1', [compraId]);
-        const userId = compraInfo.rows[0].user_id;
-        const dataCompra = compraInfo.rows[0].created_at;
-        const cursoId = compraInfo.rows[0].curso_id; // Obter o cursoId
-  
-        await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
-  
-        if (newStatus === 'aprovado') {
-          // Buscar valor_pago da tabela cursos
-          const valorPagoResult = await pool.query('SELECT valor_10d FROM cursos WHERE id = $1', [cursoId]);
-          const valorPago = valorPagoResult.rows[0].valor_10d;
-  
-          await pool.query(`
-            INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao, periodo, valor_pago) 
-            VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) 
-            ON CONFLICT (compra_id) 
-            DO UPDATE SET status = $4, data_aprovacao = NOW(), periodo = $6, valor_pago = $7;
-          `, [compraId, userId, cursoId, newStatus, dataCompra, '10d', valorPago]);
-        }
-      }));
+    await Promise.all(compraIds.map(async compraId => {
+      const newStatus = paymentStatus === 'approved' ? 'aprovado' : 'reprovado';
+
+      // Buscar userId e data_compra associado a compraId
+      const compraInfo = await pool.query('SELECT user_id, created_at, curso_id FROM compras_cursos WHERE id = $1', [compraId]);
+      const userId = compraInfo.rows[0].user_id;
+      const dataCompra = compraInfo.rows[0].created_at;
+      const cursoId = compraInfo.rows[0].curso_id; // Obter o cursoId
+
+      await pool.query('UPDATE compras_cursos SET status = $1 WHERE id = $2', [newStatus, compraId]);
+
+      if (newStatus === 'aprovado') {
+        // Buscar valor_pago da tabela cursos
+        const valorPagoResult = await pool.query('SELECT valor_10d FROM cursos WHERE id = $1', [cursoId]);
+        const valorPago = valorPagoResult.rows[0].valor_10d;
+
+        // Imprimir valores para depuração
+        console.log('compraId:', compraId);
+        console.log('userId:', userId);
+        console.log('newStatus:', newStatus);
+        console.log('dataCompra:', dataCompra);
+        console.log('periodo:', '10d');
+        console.log('valorPago:', valorPago);
+
+        await pool.query(`
+          INSERT INTO historico (compra_id, user_id, curso_id, status, data_compra, data_aprovacao, periodo, valor_pago) 
+          VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) 
+          ON CONFLICT (compra_id) 
+          DO UPDATE SET status = $4, data_aprovacao = NOW(), periodo = $6, valor_pago = $7;
+        `, [compraId, userId, cursoId, newStatus, dataCompra, '10d', valorPago]);
+      }
     }));
-  
+
     res.send("Notificação processada com sucesso.");
   } catch (error) {
     console.error("Erro ao processar notificação:", error);
     res.status(500).send("Erro interno do servidor");
   }
 });
+
 
 
 
