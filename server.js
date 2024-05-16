@@ -1025,7 +1025,7 @@ app.put('/api/user/profileEdit', async (req, res) => {
 });
 
 
-app.post('/api/empresas', async (req, res) => {
+app.post('/api/Updateempresas', async (req, res) => {
   const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha } = req.body;
 
   try {
@@ -1050,6 +1050,43 @@ app.post('/api/empresas', async (req, res) => {
   }
 });
 
+// Rota para buscar todas as empresas
+app.get('/api/empresas', async (req, res) => {
+  try {
+    const query = 'SELECT * FROM empresas';
+    const client = await pool.connect();
+    const { rows } = await client.query(query);
+    client.release();
+    res.json(rows);
+  } catch (error) {
+    console.error('Erro ao buscar empresas:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar empresas' });
+  }
+});
+
+// Rota para atualizar uma empresa
+app.put('/api/empresas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email } = req.body;
+
+  try {
+    const client = await pool.connect();
+    const query = `
+      UPDATE empresas
+      SET cnpj = $1, nome = $2, logradouro = $3, numero = $4, complemento = $5, 
+          bairro = $6, cidade = $7, estado = $8, cep = $9, telefone = $10, 
+          responsavel = $11, email = $12
+      WHERE id = $13
+    `;
+    const values = [cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, id];
+    await client.query(query, values);
+    client.release();
+    res.json({ success: true, message: 'Empresa atualizada com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao atualizar empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar empresa' });
+  }
+});
 app.delete('/api/delete-aluno/:userId', async (req, res) => {
   const { userId } = req.params;
 
