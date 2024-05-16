@@ -209,7 +209,8 @@ app.delete('/api/cursos-comprados/:cursoId', authenticateToken, async (req, res)
   }
 });
 
-app.delete('/api/cursos-comprados/:userId', async (req, res) => {
+// Rota para excluir cursos comprados por um usuário específico (protegida por autenticação)
+app.delete('/api/cursos-comprados/:userId', authenticateToken, async (req, res) => {
   const { userId } = req.params;
 
   try {
