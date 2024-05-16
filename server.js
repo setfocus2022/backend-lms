@@ -875,6 +875,26 @@ app.get('/api/empresa/compras', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/api/empresa/cursos/total', authenticateToken, async (req, res) => {
+  const empresaNome = req.user.username;
+
+  try {
+    const query = `
+      SELECT COUNT(DISTINCT cc.curso_id) AS total_cursos
+      FROM compras_cursos cc
+      JOIN users u ON cc.user_id = u.id
+      WHERE u.empresa = $1 AND cc.status = 'aprovado'
+    `;
+    const { rows } = await pool.query(query, [empresaNome]);
+    const totalCursos = rows[0].total_cursos;
+
+    res.json({ success: true, totalCursos });
+  } catch (error) {
+    console.error('Erro ao buscar total de cursos da empresa:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar total de cursos' });
+  }
+});
+
 app.post('/api/add-aluno', async (req, res) => {
   const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
 
