@@ -1131,29 +1131,21 @@ app.put('/api/empresas/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/delete-historico/:userId', async (req, res) => {
-  const { userId } = req.params;
-
-  try {
-    const query = 'DELETE FROM compras_cursos WHERE user_id = $1';
-    const client = await pool.connect();
-    await client.query(query, [userId]);
-    client.release();
-
-    res.json({ success: true, message: 'Histórico do aluno excluído com sucesso!' });
-  } catch (error) {
-    console.error('Erro ao excluir histórico do aluno:', error);
-    res.status(500).json({ success: false, message: 'Erro ao excluir histórico do aluno' });
-  }
-});
-
 app.delete('/api/delete-aluno/:userId', async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const query = 'DELETE FROM users WHERE id = $1';
     const client = await pool.connect();
-    await client.query(query, [userId]);
+
+    // 1. Exclua os registros relacionados na tabela "historico" (opcional)
+    // await client.query('DELETE FROM historico WHERE user_id = $1', [userId]);
+
+    // 2. Exclua os registros relacionados na tabela "compras_cursos"
+    await client.query('DELETE FROM compras_cursos WHERE user_id = $1', [userId]);
+
+    // 3. Exclua o usuário da tabela "users"
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
     client.release();
 
     res.json({ success: true, message: 'Aluno excluído com sucesso!' });
