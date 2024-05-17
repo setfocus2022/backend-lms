@@ -731,7 +731,7 @@ app.post("/api/checkout", async (req, res) => {
 
 app.post("/api/checkout/pacote", authenticateToken, async (req, res) => { 
   const { items, userId } = req.body;
-  const empresaNome = req.user.username; // Obter o nome da empresa do token
+  const empresaNome = req.user.username; 
 
   try {
     // 1. Obter os IDs dos cursos do item 'Pacote de Cursos'
@@ -749,7 +749,18 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
           "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
           [alunoId, cursoId, '10d'] 
         );
-        return rows[0].id;
+
+        const compraId = rows[0].id;
+
+        // 5. Lidar com o timeout da compra (movido para dentro do Promise.all)
+        setTimeout(async () => {
+          const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+          if (rows.length > 0 && rows[0].status === 'pendente') {
+            await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1', [compraId]);
+          }
+        }, 300000); // 5 minutos em milissegundos
+
+        return compraId;
       }));
     }));
 
