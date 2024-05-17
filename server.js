@@ -29,7 +29,7 @@ app.use(express.json());
 const mercadopago = require("mercadopago");
 // APP_USR-8063147763333109-040612-2e2f18a4e1b39856373093e03bccce81-1759639890 - TEST-8063147763333109-040612-8f949eff9bb8bd0eb071d55bb23e6497-1759639890
 mercadopago.configure({
-  access_token: "APP_USR-8063147763333109-040612-2e2f18a4e1b39856373093e03bccce81-1759639890",
+  access_token: "TEST-8063147763333109-040612-8f949eff9bb8bd0eb071d55bb23e6497-1759639890",
 });
 app.get('/api/cursos/status/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
@@ -747,7 +747,7 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
       return Promise.all(cursoIds.map(async cursoId => {
         const { rows } = await pool.query(
           "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
-          [alunoId, cursoId, '10d'] // Substitua '10d' pelo período correto
+          [alunoId, cursoId, '10d'] 
         );
         return rows[0].id;
       }));
@@ -768,13 +768,13 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
     const response = await mercadopago.preferences.create(preference);
 
     // 5. Lidar com o timeout da compra
-    comprasRegistradas.forEach(compraId => {
+    comprasRegistradas.flat().forEach(compraId => {
       setTimeout(async () => {
         const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
         if (rows.length > 0 && rows[0].status === 'pendente') {
-          await pool.query('UPDATE compras_cursos SET status = \'Não Realizada\' WHERE id = $1', [compraId]);
+          await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1', [compraId]);
         }
-      }, 300000); // 5 minutos
+      }, 300000); // 5 minutos em milissegundos
     });
 
     // 6. Enviar a resposta
