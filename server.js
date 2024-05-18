@@ -758,7 +758,7 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
           if (rows.length > 0 && rows[0].status === 'pendente') {
             await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1', [compraId]);
           }
-        }, 300000); // 5 minutos em milissegundos
+        }, 315000); // 5 minutos em milissegundos
 
         return compraId;
       }));
