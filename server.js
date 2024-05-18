@@ -746,31 +746,10 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
     const comprasRegistradas = await Promise.all(alunoIds.map(async alunoId => {
       return Promise.all(cursoIds.map(async cursoId => {
         const { rows } = await pool.query(
-          "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, created_at) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
+          "INSERT INTO compras_cursos (user_id, curso_id, status, periodo, data_compra) VALUES ($1, $2, 'pendente', $3, NOW()) RETURNING id",
           [alunoId, cursoId, '10d'] // Substitua '10d' pelo período correto
         );
-
-        const compraId = rows[0].id;
-
-        // 5. Lidar com o timeout da compra (apenas o setTimeout interno)
-        setTimeout(async () => {
-          console.log(`Verificando status da compra ${compraId}...`);
-          const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
-          
-          if (rows.length > 0 && rows[0].status === 'pendente') {
-            console.log(`Atualizando status da compra ${compraId} para 'Compra não efetuada no tempo determinado'...`);
-            try {
-              await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1 AND status = \'pendente\'', [compraId]); // Tratamento de concorrência
-              console.log(`Status da compra ${compraId} atualizado com sucesso.`);
-            } catch (error) {
-              console.error(`Erro ao atualizar status da compra ${compraId}:`, error);
-            }
-          } else {
-            console.log(`Status da compra ${compraId} já foi atualizado: ${rows[0].status}`);
-          }
-        }, 305000);
-
-        return compraId;
+        return rows[0].id; // Retorna o ID da compra
       }));
     }));
 
@@ -795,6 +774,24 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
     res.status(500).json({ error: error.toString() });
   }
 });
+
+app.post("/api/atualizar-status-compra/:compraId", authenticateToken, async (req, res) => {
+  const { compraId } = req.params;
+
+  try {
+    const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+    if (rows.length > 0 && rows[0].status === 'pendente') {
+      await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1', [compraId]);
+      res.json({ success: true, message: 'Status da compra atualizado com sucesso.' });
+    } else {
+      res.json({ success: false, message: 'Status da compra já foi atualizado.' });
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar status da compra:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar status da compra.' });
+  }
+});
+
 // Função para enviar email com detalhes da compra
 const enviarEmailConfirmacaoCompra = async (email, itensCompra, total, dataCompra) => {
   const htmlContent = `
