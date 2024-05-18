@@ -754,11 +754,21 @@ app.post("/api/checkout/pacote", authenticateToken, async (req, res) => {
 
         // 5. Lidar com o timeout da compra (apenas o setTimeout interno)
         setTimeout(async () => {
+          console.log(`Verificando status da compra ${compraId}...`);
           const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
+          
           if (rows.length > 0 && rows[0].status === 'pendente') {
-            await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1', [compraId]);
+            console.log(`Atualizando status da compra ${compraId} para 'Compra não efetuada no tempo determinado'...`);
+            try {
+              await pool.query('UPDATE compras_cursos SET status = \'Compra não efetuada no tempo determinado\' WHERE id = $1 AND status = \'pendente\'', [compraId]); // Tratamento de concorrência
+              console.log(`Status da compra ${compraId} atualizado com sucesso.`);
+            } catch (error) {
+              console.error(`Erro ao atualizar status da compra ${compraId}:`, error);
+            }
+          } else {
+            console.log(`Status da compra ${compraId} já foi atualizado: ${rows[0].status}`);
           }
-        }, 315000); // 5 minutos em milissegundos
+        }, 305000);
 
         return compraId;
       }));
