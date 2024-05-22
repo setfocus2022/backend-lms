@@ -1463,63 +1463,97 @@ app.get('/api/validateToken', authenticateToken, (req, res) => {
 
 app.post("/api/user/login", async (req, res) => {
   const { Email, senha } = req.body;
+  console.log("Dados recebidos:", Email, senha); // Log para verificar os dados recebidos
 
   if (!Email || !senha) {
+    console.log("Dados incompletos."); // Log para verificar se os dados estão incompletos
     return res.status(400).json({ success: false, message: 'Dados incompletos.' });
   }
 
   try {
+    console.log("Iniciando processo de login..."); // Log para indicar o início do processo
     // 1. Verificar na tabela 'users'
     const userQuery = "SELECT * FROM users WHERE email = $1 OR username = $1";
     const client = await pool.connect();
     const userResults = await client.query(userQuery, [Email]);
+    console.log("Resultados da consulta 'users':", userResults.rows); // Log dos resultados da consulta
 
     if (userResults.rows.length > 0) {
       const user = userResults.rows[0];
-      const senhaValida = await bcrypt.compare(senha, user.senha);
+      console.log("Usuário encontrado:", user); // Log do usuário encontrado
 
-      if (senhaValida) {
-        // Login bem-sucedido como usuário normal
-        const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
-        return res.json({
-          success: true,
-          message: 'Login bem-sucedido!',
-          token: token,
-          username: user.username,
-          userId: user.id,
-          role: user.role
+      // Usando bcrypt-nodejs para comparar senhas
+      bcrypt.compare(senha, user.senha, (err, senhaValida) => {
+        if (err) {
+          console.error("Erro ao comparar senhas:", err); // Log do erro de comparação
+          return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+        }
+
+        console.log("Senha válida:", senhaValida); // Log do resultado da comparação
+
+        if (senhaValida) {
+          // Login bem-sucedido como usuário normal
+          const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
+          console.log("Token gerado:", token); // Log do token gerado
+          return res.json({
+            success: true,
+            message: 'Login bem-sucedido!',
+            token: token,
+            username: user.username,
+            userId: user.id,
+            role: user.role
+          });
+        } else {
+          console.log("Credenciais inválidas (senha incorreta)."); // Log para senha incorreta
+          return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+        }
+      });
+    } else {
+      console.log("Nenhum usuário encontrado com o email/username fornecido."); // Log para usuário não encontrado
+
+      // 2. Verificar na tabela 'empresas'
+      const empresaQuery = "SELECT * FROM empresas WHERE email = $1";
+      const empresaResults = await client.query(empresaQuery, [Email]);
+      console.log("Resultados da consulta 'empresas':", empresaResults.rows); // Log dos resultados da consulta
+
+      if (empresaResults.rows.length > 0) {
+        const empresa = empresaResults.rows[0];
+        console.log("Empresa encontrada:", empresa); // Log da empresa encontrada
+
+        // Usando bcrypt-nodejs para comparar senhas
+        bcrypt.compare(senha, empresa.senha, (err, senhaValida) => {
+          if (err) {
+            console.error("Erro ao comparar senhas:", err); // Log do erro de comparação
+            return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+          }
+
+          console.log("Senha válida:", senhaValida); // Log do resultado da comparação
+
+          if (senhaValida) {
+            // Login bem-sucedido como empresa (Empresa)
+            const token = jwt.sign({ userId: empresa.id, role: 'Empresa', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
+            console.log("Token gerado:", token); // Log do token gerado
+            return res.json({
+              success: true,
+              message: 'Login bem-sucedido!',
+              token: token,
+              username: empresa.nome, // Usando o nome da empresa como username
+              userId: empresa.id,
+              role: 'Empresa' // Definindo a role como 'Empresa'
+            });
+          } else {
+            console.log("Credenciais inválidas (senha incorreta)."); // Log para senha incorreta
+            return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+          }
         });
+      } else {
+        console.log("Nenhuma empresa encontrada com o email fornecido."); // Log para empresa não encontrada
+        client.release();
+        return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
       }
     }
-
-    // 2. Verificar na tabela 'empresas'
-    const empresaQuery = "SELECT * FROM empresas WHERE email = $1";
-    const empresaResults = await client.query(empresaQuery, [Email]);
-
-    if (empresaResults.rows.length > 0) {
-      const empresa = empresaResults.rows[0];
-      const senhaValida = await bcrypt.compare(senha, empresa.senha);
-
-      if (senhaValida) {
-        // Login bem-sucedido como empresa (Empresa)
-        const token = jwt.sign({ userId: empresa.id, role: 'Empresa', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
-        return res.json({
-          success: true,
-          message: 'Login bem-sucedido!',
-          token: token,
-          username: empresa.nome, // Usando o nome da empresa como username
-          userId: empresa.id,
-          role: 'Empresa' // Definindo a role como 'Empresa'
-        });
-      }
-    }
-
-    client.release();
-
-    // 3. Se nenhum login for bem-sucedido
-    res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
   } catch (error) {
-    console.error(error);
+    console.error("Erro no login:", error); // Log detalhado do erro
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
