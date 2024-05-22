@@ -16,7 +16,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000','https://615e-187-109-142-240.ngrok-free.app' ,'https://quaint-tank-top.cyclic.app/', 'https://www.fmatch.com.br', 'https://connect-ead.vercel.app' , 'https://www.connectfam.com.br'],
+  origin: ['http://localhost:3000','https://backend-lms-6n8k.onrender.com', 'https://www.fmatch.com.br'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
