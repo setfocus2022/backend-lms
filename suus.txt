@@ -112,23 +112,3 @@ sobrenome
 varchar
 username
 varchar
-
-empresas
-
-email
-varchar
-id
-int4
-modulos
-jsonb
-nome
-varchar
-senha
-varchar
-
-
-perfeito, preciso que na pagina de "NovoAluno.js" ele carregue os dados dos alunos da empresa logada; tabela de " adicionar novo aluno " deve adicionar o aluno com a relação da empresa logada; formulario de "Cadastrar nova empresa" não pode aparecer caso o usuario logado seja uma empresa. forneça o codigo para essa solução:
-server.js
-19539 Tokens
-NovoAluno.js
-5200 Tokens
