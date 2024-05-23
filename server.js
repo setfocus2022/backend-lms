@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt-nodejs');
+const bcrypt = require('bcrypt');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -10,7 +10,7 @@ const fs = require('fs');
 const app = express();
 const path = require('path');
 const pool = new Pool({
-  connectionString: 'postgresql://connectfamead:q0rRK1gyMALN@ep-white-sky-a52j6d6i.us-east-2.aws.neon.tech/lms_mmstrok?sslmode=require',
+  connectionString: 'postgresql://avalie_imoveis_owner:rqBTYR6N5bks@ep-dawn-forest-a5321xho.us-east-2.aws.neon.tech/avalie_imoveis?sslmode=require',
   ssl: {
     rejectUnauthorized: false,
   },
@@ -920,7 +920,7 @@ app.get('/api/empresa/cursos/total', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/add-aluno', async (req, res) => {
+app.post('/api/add-user', async (req, res) => {
   const { 
     username, 
     nome, 
@@ -953,11 +953,11 @@ app.post('/api/add-aluno', async (req, res) => {
     await client.query(query, values);
 
     // 4. Envie a resposta de sucesso
-    res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
+    res.json({ success: true, message: 'Usuário criado com sucesso!' });
 
   } catch (error) {
-    console.error('Erro ao adicionar aluno:', error);
-    res.status(500).json({ success: false, message: 'Erro ao adicionar aluno' });
+    
+    res.status(500).json({ success: false, message: 'Erro ao criar Usuário' });
   } finally {
     // 5. Libere a conexão com o banco de dados
     client.release();
@@ -1619,25 +1619,27 @@ app.post('/api/comprar-curso', async (req, res) => {
 });
 
 app.post('/api/add-aluno', async (req, res) => {
-  const { username, nome, sobrenome, email, role, empresa, senha } = req.body;
-
-  // Gere um hash da senha usando a biblioteca bcrypt
-  const saltRounds = 10;
-  const hashedPassword = await bcrypt.hash(senha, saltRounds);
-
-  // Query para inserir o novo aluno no banco de dados (incluindo "empresa")
-  const query = 'INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha) VALUES ($1, $2, $3, $4, $5, $6, $7)';
-  const values = [username, nome, sobrenome, email, role, empresa, hashedPassword];
+  const { username, nome, sobrenome, email, role, senha } = req.body;
 
   try {
+    // Gere um hash da senha usando a biblioteca bcrypt
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(senha, saltRounds);
+
+    // Query para inserir o novo aluno no banco de dados
+    const query = 'INSERT INTO users (username, nome, sobrenome, email, role, senha) VALUES ($1, $2, $3, $4, $5, $6)';
+    const values = [username, nome, sobrenome, email, role, hashedPassword];
+
+    // Executa a query e aguarda o resultado
     await pool.query(query, values);
+
     res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
+
   } catch (error) {
     console.error('Erro ao adicionar aluno:', error);
     res.status(500).json({ success: false, message: 'Erro ao adicionar aluno' });
   }
 });
-
 
 
 // Rota para atualizar as informações do perfil do usuário
