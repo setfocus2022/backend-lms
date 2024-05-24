@@ -17,7 +17,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000','https://backend-lms-6n8k.onrender.com', 'https://www.fmatch.com.br'],
+  origin: ['http://localhost:3000','https://backend-painel.onrender.com', 'https://painel-swart.vercel.app/Login'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
