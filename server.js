@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcrypt-nodejs');
 const { Pool } = require('pg');
 const jwtSecret = 'suus02201998##';
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
@@ -154,13 +154,30 @@ app.post('/api/user/verify-code', async (req, res) => {
   }
 });
 
-app.post('/api/user/update-password', async (req, res) => {
+app.post('/api/user/update-password', (req, res) => {
   const { email, newPassword } = req.body;
-  // Atualiza a senha do usuário (certifique-se de usar hash na senha)
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(newPassword, salt);
-  await pool.query('UPDATE users SET senha = $1 WHERE email = $2', [hashedPassword, email]);
-  res.json({ success: true, message: 'Senha atualizada com sucesso.' });
+
+  bcrypt.genSalt(10, (err, salt) => { // Gerar salt com callback
+    if (err) {
+      console.error('Erro ao gerar salt:', err);
+      return res.status(500).json({ success: false, message: 'Erro ao atualizar senha' });
+    }
+
+    bcrypt.hash(newPassword, salt, async (err, hashedPassword) => { // Hash com callback
+      if (err) {
+        console.error('Erro ao gerar hash da senha:', err);
+        return res.status(500).json({ success: false, message: 'Erro ao atualizar senha' });
+      }
+
+      try {
+        await pool.query('UPDATE users SET senha = $1 WHERE email = $2', [hashedPassword, email]);
+        res.json({ success: true, message: 'Senha atualizada com sucesso.' });
+      } catch (error) {
+        console.error('Erro ao atualizar senha:', error);
+        res.status(500).json({ success: false, message: 'Erro ao atualizar senha' });
+      }
+    });
+  });
 });
 
 
@@ -920,48 +937,30 @@ app.get('/api/empresa/cursos/total', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/api/add-user', async (req, res) => {
-  const { 
-    username, 
-    nome, 
-    sobrenome, 
-    email, 
-    role, 
-    empresa, 
-    senha,
-    cep, 
-    cidade,
-    endereco,
-    pais 
-  } = req.body;
+app.post('/api/add-user', (req, res) => {
+  const { username, nome, sobrenome, email, role, empresa, senha, cep, cidade, endereco, pais } = req.body;
 
-  try {
-    // 1. Gere um hash da senha usando bcrypt
-    const saltRounds = 10; 
-    const hashedPassword = await bcrypt.hash(senha, saltRounds);
+  bcrypt.hash(senha, 10, async (err, hashedPassword) => {
+    if (err) {
+      console.error('Erro ao criar usuário:', err);
+      return res.status(500).json({ success: false, message: 'Erro ao criar usuário' });
+    }
 
-    // 2. Conecte-se ao banco de dados PostgreSQL
-    const client = await pool.connect();
-
-    // 3. Execute a consulta SQL para inserir o novo aluno
-    const query = `
-      INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha, cep, cidade, endereco, pais)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    `;
-    const values = [username, nome, sobrenome, email, role, empresa, hashedPassword, cep, cidade, endereco, pais];
-
-    await client.query(query, values);
-
-    // 4. Envie a resposta de sucesso
-    res.json({ success: true, message: 'Usuário criado com sucesso!' });
-
-  } catch (error) {
-    
-    res.status(500).json({ success: false, message: 'Erro ao criar Usuário' });
-  } finally {
-    // 5. Libere a conexão com o banco de dados
-    client.release();
-  }
+    try {
+      const client = await pool.connect();
+      const query = `
+        INSERT INTO users (username, nome, sobrenome, email, role, empresa, senha, cep, cidade, endereco, pais)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `;
+      const values = [username, nome, sobrenome, email, role, empresa, hashedPassword, cep, cidade, endereco, pais];
+      await client.query(query, values);
+      client.release();
+      res.json({ success: true, message: 'Usuário criado com sucesso!' });
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      res.status(500).json({ success: false, message: 'Erro ao criar usuário' });
+    }
+  });
 });
 
 const getAulasPorCursoId = async (cursoId) => {
@@ -1060,30 +1059,30 @@ app.put('/api/user/profileEdit', async (req, res) => {
   }
 });
 
-
-app.post('/api/Updateempresas', async (req, res) => {
+app.post('/api/Updateempresas', (req, res) => {
   const { cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha } = req.body;
 
-  try {
-    // Gere um hash da senha usando bcrypt
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(senha, saltRounds);
+  bcrypt.hash(senha, 10, async (err, hashedPassword) => {
+    if (err) {
+      console.error('Erro ao cadastrar empresa:', err);
+      return res.status(500).json({ success: false, message: 'Erro ao cadastrar empresa' });
+    }
 
-    const client = await pool.connect();
-    const query = `
-      INSERT INTO empresas (cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-    `;
-    const values = [cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, hashedPassword];
-
-    await client.query(query, values);
-    client.release();
-
-    res.json({ success: true, message: 'Empresa cadastrada com sucesso!' });
-  } catch (error) {
-    console.error('Erro ao cadastrar empresa:', error);
-    res.status(500).json({ success: false, message: 'Erro ao cadastrar empresa' });
-  }
+    try {
+      const client = await pool.connect();
+      const query = `
+        INSERT INTO empresas (cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, senha)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      `;
+      const values = [cnpj, nome, logradouro, numero, complemento, bairro, cidade, estado, cep, telefone, responsavel, email, hashedPassword];
+      await client.query(query, values);
+      client.release();
+      res.json({ success: true, message: 'Empresa cadastrada com sucesso!' });
+    } catch (error) {
+      console.error('Erro ao cadastrar empresa:', error);
+      res.status(500).json({ success: false, message: 'Erro ao cadastrar empresa' });
+    }
+  });
 });
 
 // Rota para buscar todas as empresas
@@ -1179,91 +1178,7 @@ app.delete('/api/delete-aluno/:userId', async (req, res) => {
   }
 });
 
-app.post('/api/cursos/acesso/:cursoId', async (req, res) => {
-  const { cursoId } = req.params;
-  const { userId } = req.body;
 
-  try {
-    // Consulta para obter os dados do curso comprado
-    const cursoRows = await pool.query(
-      'SELECT periodo, data_inicio_acesso FROM compras_cursos WHERE user_id = $1 AND curso_id = $2',
-      [userId, cursoId]
-    );
-
-    if (cursoRows.rowCount > 0 && cursoRows.rows[0].data_inicio_acesso == null) {
-      let intervalo;
-
-      // Definindo o intervalo de acordo com o período do curso
-      switch (cursoRows.rows[0].periodo) {
-        case '10d':
-          intervalo = '10 days';
-          break;
-        case '30d':
-          intervalo = '30 days';
-          break;
-        case '6m':
-          intervalo = '6 months';
-          break;
-        default:
-          return res.status(400).json({ success: false, message: 'Período de curso inválido.' });
-      }
-
-      // Atualiza a data de início e fim de acesso, convertendo para o fuso horário de São Paulo
-      await pool.query(`
-        UPDATE compras_cursos 
-        SET 
-          data_inicio_acesso = (NOW() AT TIME ZONE 'America/Sao_Paulo'), 
-          data_fim_acesso = ((NOW() AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '${intervalo}')
-        WHERE user_id = $1 AND curso_id = $2
-      `, [userId, cursoId]);
-
-      // Insere ou atualiza o registro em progresso_cursos
-      const progressoQuery = `
-        INSERT INTO progresso_cursos (user_id, curso_id, progresso, status)
-        VALUES ($1, $2, 0, 'iniciado')
-        ON CONFLICT (user_id, curso_id) DO UPDATE
-        SET status = 'iniciado';
-      `;
-      await pool.query(progressoQuery, [userId, cursoId]);
-
-      // Update status_progresso in historico table
-      await pool.query(
-        'UPDATE historico SET status_progresso = $1 WHERE user_id = $2 AND curso_id = $3',
-        ['iniciado', userId, cursoId]
-      );
-
-      res.json({ success: true, message: 'Acesso ao curso registrado com sucesso e progresso inicializado.' });
-    } else if (cursoRows.rowCount > 0) {
-      res.json({ success: true, message: 'Acesso ao curso já registrado anteriormente.' });
-    } else {
-      res.status(404).json({ success: false, message: 'Curso não encontrado.' });
-    }
-  } catch (error) {
-    console.error('Erro ao registrar acesso e progresso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao registrar acesso e progresso.', error: error.message });
-  }
-});
-
-
-app.post('/api/cursos/progresso', async (req, res) => {
-  const { userId, cursoId, progresso } = req.body;
-
-  try {
-    const client = await pool.connect();
-    const query = `
-      INSERT INTO progresso_cursos (user_id, curso_id,  progresso)
-      VALUES ($1, $2, $3)
-      ON CONFLICT (user_id, curso_id) DO UPDATE
-      SET  progresso = $3;
-    `;
-    await client.query(query, [userId, cursoId,  progresso]);
-    client.release();
-    res.json({ success: true, message: 'Progresso atualizado com sucesso!' });
-  } catch (error) {
-    console.error('Erro ao atualizar progresso:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar progresso', error: error.message });
-  }
-});
 
 app.get('/api/verificar-acesso/:userId/:cursoId', async (req, res) => {
   const { userId, cursoId } = req.params;
@@ -1302,21 +1217,7 @@ app.get('/api/cursos', async (req, res) => {
   }
 });
 
-app.get('/api/progresso/:userId/:cursoId', async (req, res) => {
-  const { userId, cursoId } = req.params;
-  try {
-    const query = 'SELECT status FROM progresso_cursos WHERE user_id = $1 AND curso_id = $2';
-    const { rows } = await pool.query(query, [userId, cursoId]);
-    if (rows.length > 0) {
-      res.json({ status: rows[0].status });
-    } else {
-      res.status(404).json({ message: 'Progresso não encontrado.' });
-    }
-  } catch (error) {
-    console.error('Erro ao buscar o progresso:', error);
-    res.status(500).json({ message: 'Erro interno do servidor.' });
-  }
-});
+
 
 // Rota para contar alunos cadastrados
 app.get('/api/alunos/count', async (req, res) => {
@@ -1344,38 +1245,7 @@ app.get('/api/alunos/password-changed/count', async (req, res) => {
   }
 });
 
-app.get('/api/certificados/:userId', authenticateToken, async (req, res) => {
-  const userId = req.user.userId; // Agora pegando o userId do token
 
-  try {
-    // Fetch certificates from historico
-    const query = `
-      SELECT c.id, c.nome
-      FROM cursos c
-      JOIN historico h ON c.id = h.curso_id
-      WHERE h.user_id = $1 AND h.status_progresso = 'concluido'
-    `;
-    const { rows } = await pool.query(query, [userId]);
-    res.json(rows);
-  } catch (error) {
-    console.error('Erro ao buscar certificados:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
-
-
-// Rota para contar cursos cadastrados
-app.get('/api/cursos/count', async (req, res) => {
-  try {
-    const client = await pool.connect();
-    const { rows } = await client.query("SELECT COUNT(*) FROM cursos");
-    client.release();
-    res.json({ success: true, count: parseInt(rows[0].count, 10) });
-  } catch (error) {
-    console.error("Erro ao contar cursos:", error);
-    res.status(500).json({ success: false, message: "Erro interno do servidor" });
-  }
-});
 app.get("/alunos", async (req, res) => {
   try {
     const query = "SELECT  empresa, id, nome, sobrenome, email, endereco, cidade, cep, pais, role, username FROM Users WHERE role = $1";
@@ -1391,26 +1261,29 @@ app.get("/alunos", async (req, res) => {
 });
 
 
-app.post('/register_usuario', async (req, res) => {
+app.post('/register_usuario', (req, res) => {
   const { usuario, nome, email, senha, unidade, setor, acesso } = req.body;
 
-  try {
-    // Criptografe a senha antes de armazenar no banco de dados
-    const senhaHash = await bcrypt.hash(senha, 10);
+  bcrypt.hash(senha, 10, async (err, senhaHash) => {
+    if (err) {
+      console.log(err);
+      return res.send({ success: false, message: err.message });
+    }
 
-    const query = 'INSERT INTO login_register (usuario, nome, email, senha, unidade, setor, acesso) VALUES ($1, $2, $3, $4, $5, $6, $7)';
-    const values = [usuario, nome, email, senhaHash, unidade, setor, acesso];
+    try {
+      const query = 'INSERT INTO login_register (usuario, nome, email, senha, unidade, setor, acesso) VALUES ($1, $2, $3, $4, $5, $6, $7)';
+      const values = [usuario, nome, email, senhaHash, unidade, setor, acesso];
 
-    const client = await pool.connect();
-    const result = await client.query(query, values);
+      const client = await pool.connect();
+      await client.query(query, values);
+      client.release();
 
-    res.send({ success: true });
-  } catch (err) {
-    console.log(err);
-    return res.send({ success: false, message: err.message });
-  } finally {
-    if (client) client.release();
-  }
+      res.send({ success: true });
+    } catch (err) {
+      console.log(err);
+      return res.send({ success: false, message: err.message });
+    }
+  });
 });
 
 
@@ -1461,99 +1334,114 @@ app.get('/api/validateToken', authenticateToken, (req, res) => {
   });
 });
 
-app.post("/api/user/login", async (req, res) => {
+app.post("/api/user/login", (req, res) => {
   const { Email, senha } = req.body;
-  console.log("Dados recebidos:", Email, senha); // Log para verificar os dados recebidos
+  console.log("Dados recebidos:", Email, senha);
 
   if (!Email || !senha) {
-    console.log("Dados incompletos."); // Log para verificar se os dados estão incompletos
+    console.log("Dados incompletos.");
     return res.status(400).json({ success: false, message: 'Dados incompletos.' });
   }
 
   try {
-    console.log("Iniciando processo de login..."); // Log para indicar o início do processo
+    console.log("Iniciando processo de login...");
+
     // 1. Verificar na tabela 'users'
     const userQuery = "SELECT * FROM users WHERE email = $1 OR username = $1";
-    const client = await pool.connect();
-    const userResults = await client.query(userQuery, [Email]);
-    console.log("Resultados da consulta 'users':", userResults.rows); // Log dos resultados da consulta
+    pool.connect((err, client, release) => {
+      if (err) {
+        console.error("Erro ao conectar ao banco de dados:", err);
+        return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+      }
 
-    if (userResults.rows.length > 0) {
-      const user = userResults.rows[0];
-      console.log("Usuário encontrado:", user); // Log do usuário encontrado
-
-      // Usando bcrypt-nodejs para comparar senhas
-      bcrypt.compare(senha, user.senha, (err, senhaValida) => {
+      client.query(userQuery, [Email], (err, userResults) => {
+        release(); // Liberar a conexão imediatamente após a consulta
         if (err) {
-          console.error("Erro ao comparar senhas:", err); // Log do erro de comparação
+          console.error("Erro na consulta 'users':", err);
           return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
         }
 
-        console.log("Senha válida:", senhaValida); // Log do resultado da comparação
+        console.log("Resultados da consulta 'users':", userResults.rows);
 
-        if (senhaValida) {
-          // Login bem-sucedido como usuário normal
-          const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
-          console.log("Token gerado:", token); // Log do token gerado
-          return res.json({
-            success: true,
-            message: 'Login bem-sucedido!',
-            token: token,
-            username: user.username,
-            userId: user.id,
-            role: user.role
+        if (userResults.rows.length > 0) {
+          const user = userResults.rows[0];
+          console.log("Usuário encontrado:", user);
+
+          bcrypt.compare(senha, user.senha, (err, senhaValida) => {
+            if (err) {
+              console.error("Erro ao comparar senhas:", err);
+              return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+            }
+
+            console.log("Senha válida:", senhaValida);
+
+            if (senhaValida) {
+              const token = jwt.sign({ userId: user.id, role: user.role, username: user.username }, jwtSecret, { expiresIn: '10h' });
+              console.log("Token gerado:", token);
+              return res.json({
+                success: true,
+                message: 'Login bem-sucedido!',
+                token: token,
+                username: user.username,
+                userId: user.id,
+                role: user.role
+              });
+            } else {
+              console.log("Credenciais inválidas (senha incorreta).");
+              return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+            }
           });
         } else {
-          console.log("Credenciais inválidas (senha incorreta)."); // Log para senha incorreta
-          return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+          console.log("Nenhum usuário encontrado com o email/username fornecido.");
+
+          // 2. Verificar na tabela 'empresas'
+          const empresaQuery = "SELECT * FROM empresas WHERE email = $1";
+          client.query(empresaQuery, [Email], (err, empresaResults) => {
+            if (err) {
+              console.error("Erro na consulta 'empresas':", err);
+              return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+            }
+
+            console.log("Resultados da consulta 'empresas':", empresaResults.rows);
+
+            if (empresaResults.rows.length > 0) {
+              const empresa = empresaResults.rows[0];
+              console.log("Empresa encontrada:", empresa);
+
+              bcrypt.compare(senha, empresa.senha, (err, senhaValida) => {
+                if (err) {
+                  console.error("Erro ao comparar senhas:", err);
+                  return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
+                }
+
+                console.log("Senha válida:", senhaValida);
+
+                if (senhaValida) {
+                  const token = jwt.sign({ userId: empresa.id, role: 'Empresa', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
+                  console.log("Token gerado:", token);
+                  return res.json({
+                    success: true,
+                    message: 'Login bem-sucedido!',
+                    token: token,
+                    username: empresa.nome,
+                    userId: empresa.id,
+                    role: 'Empresa'
+                  });
+                } else {
+                  console.log("Credenciais inválidas (senha incorreta).");
+                  return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+                }
+              });
+            } else {
+              console.log("Nenhuma empresa encontrada com o email fornecido.");
+              return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
+            }
+          });
         }
       });
-    } else {
-      console.log("Nenhum usuário encontrado com o email/username fornecido."); // Log para usuário não encontrado
-
-      // 2. Verificar na tabela 'empresas'
-      const empresaQuery = "SELECT * FROM empresas WHERE email = $1";
-      const empresaResults = await client.query(empresaQuery, [Email]);
-      console.log("Resultados da consulta 'empresas':", empresaResults.rows); // Log dos resultados da consulta
-
-      if (empresaResults.rows.length > 0) {
-        const empresa = empresaResults.rows[0];
-        console.log("Empresa encontrada:", empresa); // Log da empresa encontrada
-
-        // Usando bcrypt-nodejs para comparar senhas
-        bcrypt.compare(senha, empresa.senha, (err, senhaValida) => {
-          if (err) {
-            console.error("Erro ao comparar senhas:", err); // Log do erro de comparação
-            return res.status(500).json({ success: false, message: 'Erro interno do servidor' });
-          }
-
-          console.log("Senha válida:", senhaValida); // Log do resultado da comparação
-
-          if (senhaValida) {
-            // Login bem-sucedido como empresa (Empresa)
-            const token = jwt.sign({ userId: empresa.id, role: 'Empresa', username: empresa.nome }, jwtSecret, { expiresIn: '10h' });
-            console.log("Token gerado:", token); // Log do token gerado
-            return res.json({
-              success: true,
-              message: 'Login bem-sucedido!',
-              token: token,
-              username: empresa.nome, // Usando o nome da empresa como username
-              userId: empresa.id,
-              role: 'Empresa' // Definindo a role como 'Empresa'
-            });
-          } else {
-            console.log("Credenciais inválidas (senha incorreta)."); // Log para senha incorreta
-            return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
-          }
-        });
-      } else {
-        console.log("Nenhuma empresa encontrada com o email fornecido."); // Log para empresa não encontrada
-        client.release();
-        return res.status(401).json({ success: false, message: 'Credenciais inválidas!' });
-      }
-    }
+    });
   } catch (error) {
-    console.error("Erro no login:", error); // Log detalhado do erro
+    console.error("Erro no login:", error);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -1602,45 +1490,33 @@ app.get('/api/alunos/empresa/:empresaNome/password-changed/count', async (req, r
   }
 });
 
-app.post('/api/comprar-curso', async (req, res) => {
-  const { userId, cursoId } = req.body;
-  
-  const query = 'INSERT INTO compras_cursos (user_id, curso_id) VALUES ($1, $2)';
-  try {
-    const client = await pool.connect();
-    await client.query(query, [userId, cursoId]);
-    client.release();
 
-    res.json({ success: true, message: 'Curso comprado com sucesso!' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: 'Erro ao comprar curso' });
-  }
-});
 
-app.post('/api/add-aluno', async (req, res) => {
+app.post('/api/add-aluno', (req, res) => {
   const { username, nome, sobrenome, email, role, senha } = req.body;
 
-  try {
-    // Gere um hash da senha usando a biblioteca bcrypt
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(senha, saltRounds);
+  bcrypt.hash(senha, 10, async (err, hashedPassword) => { // Usando bcrypt-nodejs com callback
+    if (err) {
+      console.error('Erro ao adicionar aluno:', err);
+      return res.status(500).json({ success: false, message: 'Erro ao adicionar aluno' });
+    }
 
-    // Query para inserir o novo aluno no banco de dados
-    const query = 'INSERT INTO users (username, nome, sobrenome, email, role, senha) VALUES ($1, $2, $3, $4, $5, $6)';
-    const values = [username, nome, sobrenome, email, role, hashedPassword];
+    try {
+      // Query para inserir o novo aluno no banco de dados
+      const query = 'INSERT INTO users (username, nome, sobrenome, email, role, senha) VALUES ($1, $2, $3, $4, $5, $6)';
+      const values = [username, nome, sobrenome, email, role, hashedPassword];
 
-    // Executa a query e aguarda o resultado
-    await pool.query(query, values);
+      // Executa a query e aguarda o resultado
+      await pool.query(query, values);
 
-    res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
+      res.json({ success: true, message: 'Aluno adicionado com sucesso!' });
 
-  } catch (error) {
-    console.error('Erro ao adicionar aluno:', error);
-    res.status(500).json({ success: false, message: 'Erro ao adicionar aluno' });
-  }
+    } catch (error) {
+      console.error('Erro ao adicionar aluno:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
 });
-
 
 // Rota para atualizar as informações do perfil do usuário
 app.put('/api/user/profile', async (req, res) => {
@@ -1719,25 +1595,7 @@ cron.schedule('0 0 0 * * *', async () => {
   scheduled: true,
   timezone: "America/Sao_Paulo"
 });
-// Adiciona uma rota para verificar o status de uma compra específica
-app.get('/api/compra/status/:compraId', async (req, res) => {
-  const { compraId } = req.params;
 
-  try {
-    // Busca o status da compra pelo ID fornecido
-    const { rows } = await pool.query('SELECT status FROM compras_cursos WHERE id = $1', [compraId]);
-
-    if (rows.length > 0) {
-      const status = rows[0].status;
-      res.json({ status });
-    } else {
-      res.status(404).json({ message: 'Compra não encontrada.' });
-    }
-  } catch (error) {
-    console.error('Erro ao buscar o status da compra:', error);
-    res.status(500).json({ message: 'Erro interno do servidor' });
-  }
-});
 
 app.get('/api/check-username/:username', async (req, res) => {
   const { username } = req.params;
@@ -1766,93 +1624,7 @@ app.get('/api/check-email/:email', async (req, res) => {
     res.status(500).json({ message: 'Erro interno do servidor' });
   }
 });
-app.get('/api/cursos-compra/', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;  // Usando userId do token
 
-  const query = `
-    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso
-    FROM cursos c
-    INNER JOIN compras_cursos cc ON c.id = cc.curso_id
-    WHERE cc.user_id = $1 AND cc.status = 'aprovado'
-  `;
-
-  try {
-    const client = await pool.connect();
-    const { rows } = await client.query(query, [userId]);
-    client.release();
-    res.json(rows);
-  } catch (error) {
-    console.error('Erro ao listar cursos comprados:', error);
-    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
-  }
-});
-app.get('/api/cursos-comprados/', authenticateToken, async (req, res) => {
-  const userId = req.user.userId;
-
-  const query = `
-    SELECT c.*, cc.data_inicio_acesso, cc.data_fim_acesso, pc.acessos_pos_conclusao
-    FROM cursos c
-    INNER JOIN compras_cursos cc ON c.id = cc.curso_id
-    LEFT JOIN progresso_cursos pc ON cc.user_id = pc.user_id AND cc.curso_id = pc.curso_id
-    WHERE cc.user_id = $1 AND cc.status = 'aprovado'
-  `;
-
-  try {
-    const client = await pool.connect();
-    const { rows } = await client.query(query, [userId]);
-    client.release();
-    res.json(rows);
-  } catch (error) {
-    console.error('Erro ao listar cursos comprados:', error);
-    res.status(500).json({ success: false, message: 'Erro ao listar cursos comprados' });
-  }
-});
-
-
-
-app.get('/api/cursos/:cursoId/aulas', async (req, res) => {
-  const { cursoId } = req.params;
-  try {
-    const aulas = await pool.query('SELECT * FROM aulas WHERE curso_id = $1', [cursoId]);
-    res.json(aulas.rows);
-  } catch (err) {
-    res.status(500).send('Erro no servidor');
-  }
-});
-
-
-app.get('/api/cursos/:cursoId/avaliacoes', async (req, res) => {
-  const { cursoId } = req.params;
-  try {
-    const avaliacoes = await pool.query('SELECT * FROM avaliacoes WHERE curso_id = $1', [cursoId]);
-    res.json(avaliacoes.rows);
-  } catch (err) {
-    res.status(500).send('Erro no servidor');
-  }
-});
-
-app.post('/api/cursos/:cursoId/verificarAvaliacao', async (req, res) => {
-  const { cursoId } = req.params;
-  const { respostasUsuario } = req.body; 
-
-  try {
-    const avaliacoes = await pool.query('SELECT * FROM avaliacoes WHERE curso_id = $1', [cursoId]);
-    let pontuacao = 0;
-    let respostasCorretas = {};
-
-    avaliacoes.rows.forEach(avaliacao => {
-      const perguntaId = parseInt(avaliacao.id, 10); // Converte o ID da pergunta para inteiro
-      if (respostasUsuario[`pergunta-${perguntaId}`] === avaliacao.resposta_correta) {
-        pontuacao += 1;
-      }
-      respostasCorretas[perguntaId] = avaliacao.resposta_correta;
-    });
-
-    res.json({ pontuacao, total: avaliacoes.rows.length, respostasCorretas });
-  } catch (err) {
-    res.status(500).send('Erro no servidor');
-  }
-});
 
 app.post('/api/recordLogout', async (req, res) => {
   const { username, instituicaoNome } = req.body;
